@@ -22,6 +22,18 @@ def issue(op, args=None, title=None, body=None, author="lolokeksu09", created=No
     }
 
 
+class SingleAgentLockTests(unittest.TestCase):
+    def test_parallel_agent_rejected_and_lock_released(self):
+        with tempfile.TemporaryDirectory() as folder:
+            lock = Path(folder) / "tv-bridge.lock"
+            with bridge.single_agent_lock(lock):
+                with self.assertRaisesRegex(bridge.BridgeError, "already running"):
+                    with bridge.single_agent_lock(lock):
+                        self.fail("Duplicate agent acquired lock")
+            with bridge.single_agent_lock(lock):
+                self.assertTrue(lock.is_file())
+
+
 class ProtocolTests(unittest.TestCase):
     def test_core_ops_accepted(self):
         for op in ["device_summary", "vitrum_status", "display_status",

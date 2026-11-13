@@ -118,10 +118,17 @@ def perform(device, operation):
         return "display: " + size[:200] + "\ndensity: " + density[:200]
 
     if operation == "focus_status":
-        window, _ = adb(device, "dumpsys", "window", "windows")
+        # Some Android TV 11 builds omit focus data from "window windows".
+        # Use the full window service, then the resumed-activity fallback.
+        window, _ = adb(device, "dumpsys", "window")
         lines = [line.strip()[:260] for line in window.splitlines()
                  if "mCurrentFocus=" in line or "mFocusedApp=" in line]
-        return "\n".join(lines[:4]) if lines else "focus: not reported"
+        if lines:
+            return "\n".join(lines[:4])
+        activity, _ = adb(device, "dumpsys", "activity", "activities")
+        resumed = [line.strip()[:260] for line in activity.splitlines()
+                   if "topResumedActivity" in line or "mResumedActivity" in line]
+        return "\n".join(resumed[:4]) if resumed else "focus: not reported"
 
     raise BridgeError("Unknown operation")
 
