@@ -1,0 +1,24 @@
+name: Private TV bridge safety tests
+
+on:
+  push:
+    paths:
+      - 'tv_bridge.py'
+      - 'test_tv_bridge.py'
+      - '.github/workflows/bridge-tests.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  strict-read-only-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test approved requests and rejected inputs
+        run: python -m unittest -v test_tv_bridge.py
