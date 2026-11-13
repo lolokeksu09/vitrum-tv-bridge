@@ -144,5 +144,54 @@ class ActionAuthorization(unittest.TestCase):
         adb.assert_called_once_with(self.DEVICE, "pm", "list", "packages", "-3")
 
 
+
+
+class ForegroundGuard(unittest.TestCase):
+    DEVICE = "192.168.0.160:5555"
+
+    def test_ui_sweep_is_a_strictly_parsed_operation(self):
+        self.assertEqual("ui_sweep", bridge.parse_issue(
+            issue("ui_sweep"), now=NOW)["op"])
+        self.assertIsNone(bridge.parse_issue(
+            issue("ui_sweep", {"shell": "reboot"}), now=NOW))
+
+    def test_ui_sweep_requires_local_control_and_screenshot_consent(self):
+        task = {"number": 50, "op": "ui_sweep", "args": {}}
+        for flags in [bridge.Permissions(),
+                      bridge.Permissions(control=True),
+                      bridge.Permissions(screenshot=True)]:
+            with self.assertRaises(bridge.ActionDenied):
+                bridge.run_action(self.DEVICE, task, flags)
+
+    @mock.patch.object(bridge, "capture_screenshot")
+    @mock.patch.object(bridge.base, "adb")
+    def test_ui_sweep_fails_closed_before_keys_if_other_app_is_foreground(self, adb, capture):
+        adb.return_value = (
+            "topResumedActivity=ActivityRecord{123 u0 com.android.vending/.MainActivity t1}", 0
+        )
+        task = {"number": 50, "op": "ui_sweep", "args": {}}
+        with self.assertRaises(bridge.BridgeError):
+            bridge.run_action(self.DEVICE, task,
+                              bridge.Permissions(control=True, screenshot=True))
+        capture.assert_not_called()
+        self.assertFalse(any(call.args[1] == "input" for call in adb.call_args_list))
+
+    @mock.patch.object(bridge, "capture_screenshot", return_value="private capture")
+    @mock.patch.object(bridge.base, "adb")
+    def test_ui_sweep_records_all_five_pages_only_with_verified_foreground(self, adb, capture):
+        def reply(device, *arguments, **kwargs):
+            if arguments[:3] == ("dumpsys", "activity", "activities"):
+                return ("topResumedActivity=ActivityRecord{123 u0 app.rayclient.tv/.TvActivity t9}", 0)
+            return ("ok", 0)
+        adb.side_effect = reply
+        result = bridge.run_action(
+            self.DEVICE, {"number": 50, "op": "ui_sweep", "args": {}},
+            bridge.Permissions(control=True, screenshot=True)
+        )
+        self.assertEqual(5, capture.call_count)
+        self.assertIn("home", result)
+        self.assertIn("settings", result)
+        self.assertIn("Returned to Home", result)
+
 if __name__ == "__main__":
     unittest.main()
