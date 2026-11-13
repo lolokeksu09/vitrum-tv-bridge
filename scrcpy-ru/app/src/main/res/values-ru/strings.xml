@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="text_001" formatted="false">"Прямое касание"</string>
+    <string name="text_002" formatted="false">"Тачпад с кнопками"</string>
+    <string name="text_003" formatted="false">"Тачпад с жестами"</string>
+    <string name="text_004" formatted="false">"Режим прямого касания: мультитач."</string>
+    <string name="text_005" formatted="false">"Тачпад с жестами: коснитесь для нажатия, удерживайте для перетаскивания. Сводите и разводите пальцы для локального масштабирования. При масштабе 1× проведите двумя пальцами для прокрутки, при увеличении — для перемещения изображения."</string>
+    <string name="text_006" formatted="false">"Тачпад с прозрачными кнопками поверх изображения. Удерживайте левую кнопку и перемещайте другой палец для перетаскивания. Масштабируйте щипком; при увеличении перемещайте изображение двумя пальцами на устройстве A."</string>
+    <string name="text_007" formatted="false">"Подключение: "</string>
+    <string name="text_008" formatted="false">"Прямое USB-подключение → "</string>
+    <string name="text_009" formatted="false">". На устройстве B подтвердите «Разрешить отладку по USB». Можно постоянно доверять устройству A."</string>
+    <string name="text_010" formatted="false">"Не удалось подключиться через USB ADB"</string>
+    <string name="text_011" formatted="false">"Сетевой ADB → "</string>
+    <string name="text_012" formatted="false">". Если на устройстве B появится запрос авторизации, подтвердите его."</string>
+    <string name="text_013" formatted="false">"Не удалось подключиться через ADB"</string>
+    <string name="text_014" formatted="false">" скопирован на устройство B."</string>
+    <string name="text_015" formatted="false">"Сервер открыл не все каналы. Проверьте сообщения об ошибках SERVER в консоли."</string>
+    <string name="text_016" formatted="false">"Некорректное подтверждение видеосоединения"</string>
+    <string name="text_017" formatted="false">"Недопустимый размер видео"</string>
+    <string name="text_018" formatted="false">"Подключено: "</string>
+    <string name="text_019" formatted="false">"Видеопоток завершён"</string>
+    <string name="text_020" formatted="false">"Сокет scrcpy недоступен"</string>
+    <string name="text_021" formatted="false">"Подключение отменено"</string>
+    <string name="text_022" formatted="false">"Некорректный ответ SYNC"</string>
+    <string name="text_023" formatted="false">"Неизвестное управляющее сообщение: "</string>
+    <string name="text_024" formatted="false">"Канал управления: "</string>
+    <string name="text_025" formatted="false">"Звук на устройстве B недоступен. Продолжаем без звука."</string>
+    <string name="text_026" formatted="false">"Воспроизведение звука остановлено: "</string>
+    <string name="text_027" formatted="false">"Некорректный пакет PCM"</string>
+    <string name="text_028" formatted="false">"Неизвестный кодек: "</string>
+    <string name="text_029" formatted="false">"Некорректная конфигурация аудио"</string>
+    <string name="text_030" formatted="false">"Отсутствует конфигурация аудио"</string>
+    <string name="text_031" formatted="false">"Некорректный медиапакет: "</string>
+    <string name="text_032" formatted="false">"Запись завершена из-за изменения параметров видео (например, при повороте экрана). Её можно экспортировать из меню."</string>
+    <string name="text_033" formatted="false">"Запись остановлена: "</string>
+    <string name="text_034" formatted="false">"Пакет слишком велик для декодера"</string>
+    <string name="text_035" formatted="false">"Видеодекодер недоступен. Попробуйте h264 или меньшее разрешение."</string>
+    <string name="text_036" formatted="false">"Сначала подключите устройство B."</string>
+    <string name="text_037" formatted="false">"Выполнение команд оболочки остановлено."</string>
+    <string name="text_038" formatted="false">"Список: "</string>
+    <string name="text_039" formatted="false">"Остановлено вручную"</string>
+    <string name="text_040" formatted="false">"Отменено"</string>
+    <string name="text_041" formatted="false">"Недопустимая кнопка мыши"</string>
+    <string name="text_042" formatted="false">"Очередь команд управления переполнена. Сессия остановлена, чтобы освободить все точки касания."</string>
+    <string name="text_043" formatted="false">"Буфер обмена слишком велик"</string>
+    <string name="text_044" formatted="false">"Неполный заголовок ADB"</string>
+    <string name="text_045" formatted="false">"Некорректная сигнатура USB ADB"</string>
+    <string name="text_046" formatted="false">"Недопустимая длина пакета USB ADB: "</string>
+    <string name="text_047" formatted="false">"Недопустимая конечная точка USB"</string>
+    <string name="text_048" formatted="false">"Исходное • без масштабирования"</string>
+    <string name="text_049" formatted="false">"Без ограничения FPS"</string>
+    <string name="text_050" formatted="false">"Автоматически"</string>
+    <string name="text_051" formatted="false">"Зафиксировать 0°"</string>
+    <string name="text_052" formatted="false">"Зафиксировать 90°"</string>
+    <string name="text_053" formatted="false">"Зафиксировать 180°"</string>
+    <string name="text_054" formatted="false">"Зафиксировать 270°"</string>
+    <string name="text_055" formatted="false">"Отключено"</string>
+    <string name="text_056" formatted="false">"Без обрезки"</string>
+    <string name="text_057" formatted="false">"0 • Основной экран"</string>
+    <string name="text_058" formatted="false">"ID 0 • если доступна на B"</string>
+    <string name="text_059" formatted="false">"ID 1 • если доступна на B"</string>
+    <string name="text_060" formatted="false">"Параметры по умолчанию"</string>
+    <string name="text_061" formatted="false">"Ключевой кадр каждую 1 с"</string>
+    <string name="text_062" formatted="false">"Ключевой кадр каждые 2 с"</string>
+    <string name="text_063" formatted="false">"Без дополнительных параметров"</string>
+    <string name="text_064" formatted="false">"Подробное журналирование"</string>
+    <string name="text_065" formatted="false">"Камера 16:9"</string>
+    <string name="text_066" formatted="false">"Авто / по умолчанию"</string>
+    <string name="text_067" formatted="false">"Некорректный ключ ADB"</string>
+    <string name="text_068" formatted="false">"Некорректный сертификат ADB"</string>
+    <string name="text_069" formatted="false">"Scrcpy • USB / Wi-Fi • сервер "</string>
+    <string name="text_070" formatted="false">"Доступ к USB на устройстве A отклонён либо кабель отсоединён."</string>
+    <string name="text_071" formatted="false">"Доступ к USB не разрешён. Нажмите «Подключить USB» для повтора."</string>
+    <string name="text_072" formatted="false">"USB-кабель отсоединён. Подключите его снова для автоматического обнаружения."</string>
+    <string name="text_073" formatted="false">"Устройство A не поддерживает режим USB-хоста/OTG."</string>
+    <string name="text_074" formatted="false">"Устройство с USB ADB не найдено. Проверьте отладку по USB на B, кабель передачи данных, режим хоста/OTG на A и разблокировку B."</string>
+    <string name="text_075" formatted="false">"Выберите устройство B"</string>
+    <string name="text_076" formatted="false">"Отмена"</string>
+    <string name="text_077" formatted="false">"Ожидание разрешения на доступ к USB на A для "</string>
+    <string name="text_078" formatted="false">"Разрешение USB: "</string>
+    <string name="text_079" formatted="false">"USB: подключение к "</string>
+    <string name="text_080" formatted="false">"Параметры USB: "</string>
+    <string name="text_081" formatted="false">"Автор: sw3gmach1n3 · A управляет B"</string>
+    <string name="text_082" formatted="false">"Не подключено"</string>
+    <string name="text_083" formatted="false">"Подключение"</string>
+    <string name="text_084" formatted="false">"Настройки"</string>
+    <string name="text_085" formatted="false">"Консоль"</string>
+    <string name="text_086" formatted="false">"Прямое подключение по USB • рекомендуется"</string>
+    <string name="text_087" formatted="false">"Соедините A и B кабелем передачи данных. Устройство A должно работать как USB-хост/OTG. На B включите отладку по USB, на A разрешите доступ к USB, а на B подтвердите ключ ADB устройства A."</string>
+    <string name="text_088" formatted="false">"Поиск устройств USB…"</string>
+    <string name="text_089" formatted="false">"Автоматически подключаться по USB, пока приложение открыто"</string>
+    <string name="text_090" formatted="false">"Подключить по USB"</string>
+    <string name="text_091" formatted="false">"Обновить список USB-устройств"</string>
+    <string name="text_092" formatted="false">"IP-адрес, беспроводное сопряжение и ПК не требуются. Если устройство B не найдено, проверьте режим OTG, параметр «USB управляется» и кабель передачи данных."</string>
+    <string name="text_093" formatted="false">"Беспроводное / IP-подключение • необязательно"</string>
+    <string name="text_094" formatted="false">"Устройство B • сеть"</string>
+    <string name="text_095" formatted="false">"Альтернативный способ: устройства A и B должны быть доступны друг другу по сети."</string>
+    <string name="text_096" formatted="false">"IP-адрес / имя хоста устройства B"</string>
+    <string name="text_097" formatted="false">"Порт подключения ADB"</string>
+    <string name="text_098" formatted="false">"Основной порт беспроводной отладки"</string>
+    <string name="text_099" formatted="false">"Подключиться по сети"</string>
+    <string name="text_100" formatted="false">"Беспроводное сопряжение • Android 11+"</string>
+    <string name="text_101" formatted="false">"На B откройте «Беспроводная отладка» → «Подключить устройство с помощью кода». Порт сопряжения отличается от порта подключения."</string>
+    <string name="text_102" formatted="false">"Порт сопряжения"</string>
+    <string name="text_103" formatted="false">"Пример: 37123"</string>
+    <string name="text_104" formatted="false">"Код сопряжения"</string>
+    <string name="text_105" formatted="false">"Код, показанный на устройстве B"</string>
+    <string name="text_106" formatted="false">"Сопрячь A с B"</string>
+    <string name="text_107" formatted="false">"Классический ADB по TCP"</string>
+    <string name="text_108" formatted="false">"Дополнительно: выполните adb tcpip 5555 на ПК, затем укажите IP-адрес B и порт 5555. Для прямого USB-подключения эта команда НЕ нужна."</string>
+    <string name="text_109" formatted="false">"Экспорт последней записи / снимка экрана"</string>
+    <string name="text_110" formatted="false">"Настройки сессии"</string>
+    <string name="text_111" formatted="false">"Изменения применяются при следующем подключении. Параметры сохраняются автоматически."</string>
+    <string name="text_112" formatted="false">"Высокое качество USB • 1920 пикс. / 60 FPS / 24 Мбит/с"</string>
+    <string name="text_113" formatted="false">"Сбалансированный профиль • 1280 / 60 FPS / 8 Мбит/с"</string>
+    <string name="text_114" formatted="false">"Экономия трафика • 800 / 30 FPS / 2 Мбит/с"</string>
+    <string name="text_115" formatted="false">"Включено"</string>
+    <string name="text_116" formatted="false">"Допустимые значения для "</string>
+    <string name="text_117" formatted="false">"Сохранить настройки"</string>
+    <string name="text_118" formatted="false">"Настройки сохранены"</string>
+    <string name="text_119" formatted="false">"Проверьте: "</string>
+    <string name="text_120" formatted="false">"Восстановить значения по умолчанию"</string>
+    <string name="text_121" formatted="false">"Сбросить настройки сессии? IP-адрес и ключ сопряжения сохранятся."</string>
+    <string name="text_122" formatted="false">"Сбросить"</string>
+    <string name="text_123" formatted="false">"Ввести вручную…"</string>
+    <string name="text_124" formatted="false">"Справка и команды"</string>
+    <string name="text_125" formatted="false">"Поиск по справке"</string>
+    <string name="text_126" formatted="false">"Например: audio, --crop, multitouch"</string>
+    <string name="text_127" formatted="false">"Ничего не найдено"</string>
+    <string name="text_128" formatted="false">"Копировать"</string>
+    <string name="text_129" formatted="false">"Очистить"</string>
+    <string name="text_130" formatted="false">"Экспорт"</string>
+    <string name="text_131" formatted="false">"Полный журнал сохранён в файл. Консоль показывает последние 2 МБ."</string>
+    <string name="text_132" formatted="false">"Команда оболочки на B: wm size / getprop …"</string>
+    <string name="text_133" formatted="false">"Выполнить на B"</string>
+    <string name="text_134" formatted="false">"Перед выполнением команды подключите устройство B."</string>
+    <string name="text_135" formatted="false">"Номер порта должен быть от 1 до 65535"</string>
+    <string name="text_136" formatted="false">"Дождитесь результата сопряжения"</string>
+    <string name="text_137" formatted="false">"Введите IP-адрес устройства B"</string>
+    <string name="text_138" formatted="false">"Настройки: "</string>
+    <string name="text_139" formatted="false">"Введите IP-адрес и шестизначный код сопряжения"</string>
+    <string name="text_140" formatted="false">"Сопряжение…"</string>
+    <string name="text_141" formatted="false">"Успешное сопряжение с "</string>
+    <string name="text_142" formatted="false">". Для сеанса используйте порт ПОДКЛЮЧЕНИЯ."</string>
+    <string name="text_143" formatted="false">"Сопряжение выполнено. Можно подключить устройство B."</string>
+    <string name="text_144" formatted="false">"Ошибка сопряжения: "</string>
+    <string name="text_145" formatted="false">"Не удалось выполнить сопряжение. См. консоль."</string>
+    <string name="text_146" formatted="false">"Меню сессии"</string>
+    <string name="text_147" formatted="false">"Инициализация: "</string>
+    <string name="text_148" formatted="false">"Сессия"</string>
+    <string name="text_149" formatted="false">"Закрыть меню и вернуться к управлению"</string>
+    <string name="text_150" formatted="false">"Назад к управлению"</string>
+    <string name="text_151" formatted="false">"Сессия завершена"</string>
+    <string name="text_152" formatted="false">"Удалённое управление"</string>
+    <string name="text_153" formatted="false">"Выберите режим взаимодействия. Меню останется открытым, пока вы его не закроете."</string>
+    <string name="text_154" formatted="false">"Прямое касание\nМультитач"</string>
+    <string name="text_155" formatted="false">"Тачпад\nЖесты"</string>
+    <string name="text_156" formatted="false">"Тачпад\nКнопки"</string>
+    <string name="text_157" formatted="false">"Кнопки «Левая» и «Правая» отображаются поверх изображения с прозрачным фоном. Удерживайте левую кнопку, перемещая курсор."</string>
+    <string name="text_158" formatted="false">"Локальное масштабирование на A • режимы тачпада"</string>
+    <string name="text_159" formatted="false">"Масштаб: %.2f× • максимум 6×"</string>
+    <string name="text_160" formatted="false">"Жест сведения/разведения пальцев изменяет масштаб только на A. При увеличении перемещайте изображение двумя пальцами; при 1× ведите двумя пальцами для прокрутки на B. Прямое касание сбрасывает масштаб до 1×."</string>
+    <string name="text_161" formatted="false">"Действия\nи инструменты"</string>
+    <string name="text_162" formatted="false">"Консоль\nи команды"</string>
+    <string name="text_163" formatted="false">"Отключиться"</string>
+    <string name="text_164" formatted="false">"Канал управления неактивен"</string>
+    <string name="text_165" formatted="false">"Действия и инструменты"</string>
+    <string name="text_166" formatted="false">"‹ Режимы управления"</string>
+    <string name="text_167" formatted="false">"Навигация на устройстве B"</string>
+    <string name="text_168" formatted="false">"←\nНазад"</string>
+    <string name="text_169" formatted="false">"▣\nНедавние"</string>
+    <string name="text_170" formatted="false">"Громкость"</string>
+    <string name="text_171" formatted="false">"Тише −"</string>
+    <string name="text_172" formatted="false">"Громче +"</string>
+    <string name="text_173" formatted="false">"Экран и панели"</string>
+    <string name="text_174" formatted="false">"Выключить\nэкран"</string>
+    <string name="text_175" formatted="false">"Включить\nэкран"</string>
+    <string name="text_176" formatted="false">"Повернуть\nэкран"</string>
+    <string name="text_177" formatted="false">"Уведомления"</string>
+    <string name="text_178" formatted="false">"Быстрые\nнастройки"</string>
+    <string name="text_179" formatted="false">"Закрыть\nпанели B"</string>
+    <string name="text_180" formatted="false">"Текст и приложения"</string>
+    <string name="text_181" formatted="false">"Отправить текст\nБуфер A → B"</string>
+    <string name="text_182" formatted="false">"Получить текст\nБуфер B → A"</string>
+    <string name="text_183" formatted="false">"Запустить приложение на B"</string>
+    <string name="text_184" formatted="false">"Снимки экрана и файлы"</string>
+    <string name="text_185" formatted="false">"Снимок экрана PNG"</string>
+    <string name="text_186" formatted="false">"Экспорт последнего\nснимка / записи"</string>
+    <string name="text_187" formatted="false">"Сведения об устройстве B • результаты в консоли"</string>
+    <string name="text_188" formatted="false">"Экраны"</string>
+    <string name="text_189" formatted="false">"Кодировщики"</string>
+    <string name="text_190" formatted="false">"Приложения"</string>
+    <string name="text_191" formatted="false">"Камеры"</string>
+    <string name="text_192" formatted="false">"Разрешения камер"</string>
+    <string name="text_193" formatted="false">"Открыть консоль сессии"</string>
+    <string name="text_194" formatted="false">"Результаты отправлены в консоль сессии."</string>
+    <string name="text_195" formatted="false">"◧ Левая"</string>
+    <string name="text_196" formatted="false">"Правая ◨"</string>
+    <string name="text_197" formatted="false">"Левая кнопка мыши; удерживайте для перетаскивания"</string>
+    <string name="text_198" formatted="false">"Правая кнопка мыши"</string>
+    <string name="text_199" formatted="false">"Консоль • активная сессия"</string>
+    <string name="text_200" formatted="false">"Команда оболочки на B"</string>
+    <string name="text_201" formatted="false">"Выполнить"</string>
+    <string name="text_202" formatted="false">"Остановить команды оболочки"</string>
+    <string name="text_203" formatted="false">"Отправить текст на B"</string>
+    <string name="text_204" formatted="false">"Вставить на B"</string>
+    <string name="text_205" formatted="false">"Только буфер обмена"</string>
+    <string name="text_206" formatted="false">"Имя или пакет приложения на B"</string>
+    <string name="text_207" formatted="false">"Запустить"</string>
+    <string name="text_208" formatted="false">"Видеокадр ещё не получен"</string>
+    <string name="text_209" formatted="false">"Снимок сохранён: "</string>
+    <string name="text_210" formatted="false">"Снимок сохранён. Экспортируйте его через меню."</string>
+    <string name="text_211" formatted="false">"Снимок экрана: "</string>
+    <string name="text_212" formatted="false">"Завершение сессии…"</string>
+    <string name="text_213" formatted="false">"Подключено к "</string>
+    <string name="text_214" formatted="false">"Устройство B"</string>
+    <string name="text_215" formatted="false">"Буфер обмена получен с B • "</string>
+    <string name="text_216" formatted="false">" символов"</string>
+    <string name="text_217" formatted="false">"Запланировано повторное подключение. Его можно отменить в меню сессии."</string>
+    <string name="text_218" formatted="false">"Консоль Scrcpy"</string>
+    <string name="text_219" formatted="false">"Консоль скопирована"</string>
+    <string name="text_220" formatted="false">"Журнал слишком велик для буфера обмена. Используйте экспорт."</string>
+    <string name="text_221" formatted="false">"Копирование: "</string>
+    <string name="text_222" formatted="false">"Очистка: "</string>
+    <string name="text_223" formatted="false">"Пока нет завершённых записей или снимков экрана. Запись завершается при отключении."</string>
+    <string name="text_224" formatted="false">"Место сохранения недоступно"</string>
+    <string name="text_225" formatted="false">"Файл экспортирован"</string>
+    <string name="text_226" formatted="false">"Для записи H264 отсутствуют SPS/PPS"</string>
+    <string name="text_227" formatted="false">"MP4: видеокадры не получены. Пустой файл удалён."</string>
+    <string name="text_228" formatted="false">"MP4 сохранён: "</string>
+    <string name="text_229" formatted="false">"Устройство B не предоставляет интерфейс ADB. Включите отладку по USB на B и подключите кабель заново."</string>
+    <string name="text_230" formatted="false">"Доступ к USB на устройстве A не предоставлен"</string>
+    <string name="text_231" formatted="false">"Не удалось открыть USB. Проверьте режим хоста/OTG на A и подключите кабель заново."</string>
+    <string name="text_232" formatted="false">"Интерфейс USB ADB занят"</string>
+    <string name="text_233" formatted="false">"Ошибка инициализации конечной точки USB IN"</string>
+    <string name="text_234" formatted="false">"Локальный клиент ADB не открыл USB-подключение"</string>
+    <string name="text_235" formatted="false">"USB закрыт"</string>
+    <string name="text_236" formatted="false">"Неполная запись в USB: "</string>
+    <string name="text_237" formatted="false">". Проверьте OTG-подключение и питание."</string>
+    <string name="text_238" formatted="false">"Не удалось поставить чтение USB в очередь"</string>
+    <string name="text_239" formatted="false">"Запрос USB отменён / кабель отключён"</string>
+    <string name="text_240" formatted="false">"USB-подключение остановлено: "</string>
+    <string name="text_241" formatted="false">"Максимальное разрешение • пикс."</string>
+    <string name="text_242" formatted="false">"0 = исходный размер; для начала подойдёт 1280."</string>
+    <string name="text_243" formatted="false">"Битрейт видео • бит/с"</string>
+    <string name="text_244" formatted="false">"8 Мбит/с = 8000000. При слабом Wi-Fi попробуйте 2000000."</string>
+    <string name="text_245" formatted="false">"Максимальная частота кадров (FPS)"</string>
+    <string name="text_246" formatted="false">"30 / 60 / 90 / 120; фактическая частота зависит от B и подключения."</string>
+    <string name="text_247" formatted="false">"Видеокодек"</string>
+    <string name="text_248" formatted="false">"Источник видео"</string>
+    <string name="text_249" formatted="false">"ID экрана"</string>
+    <string name="text_250" formatted="false">"0 = основной экран. Список экранов доступен в меню сессии."</string>
+    <string name="text_251" formatted="false">"Обрезка изображения"</string>
+    <string name="text_252" formatted="false">"ширина:высота:x:y, например 1080:1920:0:0. Пусто = весь экран."</string>
+    <string name="text_253" formatted="false">"Ориентация захвата"</string>
+    <string name="text_254" formatted="false">"Пусто = авто; 0, 90, 180, 270; @0 фиксирует ориентацию."</string>
+    <string name="text_255" formatted="false">"Угол видео"</string>
+    <string name="text_256" formatted="false">"Поворот в градусах. Выполняется сервером, не меняет устройство A."</string>
+    <string name="text_257" formatted="false">"Видеокодировщик"</string>
+    <string name="text_258" formatted="false">"Пусто = автоматически; доступные названия есть в разделе «Кодировщики» меню сессии."</string>
+    <string name="text_259" formatted="false">"Дополнительные параметры видеокодировщика"</string>
+    <string name="text_260" formatted="false">"Пример: i-frame-interval=1. Значения MediaFormat: key[:type]=value."</string>
+    <string name="text_261" formatted="false">"Звук с устройства B"</string>
+    <string name="text_262" formatted="false">"Аудиокодек"</string>
+    <string name="text_263" formatted="false">"Битрейт аудио • бит/с"</string>
+    <string name="text_264" formatted="false">"Для AAC/Opus. RAW — без сжатия."</string>
+    <string name="text_265" formatted="false">"Источник аудио"</string>
+    <string name="text_266" formatted="false">"Продолжать воспроизведение звука на B"</string>
+    <string name="text_267" formatted="false">"Аудиокодировщик"</string>
+    <string name="text_268" formatted="false">"Пусто = автоматически."</string>
+    <string name="text_269" formatted="false">"Дополнительные параметры аудиокодировщика"</string>
+    <string name="text_270" formatted="false">"key[:type]=value. Дополнительный параметр; зависит от кодировщика."</string>
+    <string name="text_271" formatted="false">"ID камеры"</string>
+    <string name="text_272" formatted="false">"Пусто = автоматически. Доступно при захвате с камеры на Android 12+."</string>
+    <string name="text_273" formatted="false">"Предпочтительная камера"</string>
+    <string name="text_274" formatted="false">"Разрешение камеры"</string>
+    <string name="text_275" formatted="false">"Пример: 1920x1080. Пусто = автоматически."</string>
+    <string name="text_276" formatted="false">"Частота кадров камеры (FPS)"</string>
+    <string name="text_277" formatted="false">"30 или 60, если поддерживается."</string>
+    <string name="text_278" formatted="false">"Высокоскоростная камера"</string>
+    <string name="text_279" formatted="false">"Виртуальный экран"</string>
+    <string name="text_280" formatted="false">"Пусто = отключено; пример: 1280x720/240. Зависит от версии Android на B."</string>
+    <string name="text_281" formatted="false">"Разрешить управление"</string>
+    <string name="text_282" formatted="false">"Показывать касания на B"</string>
+    <string name="text_283" formatted="false">"Не переводить B в сон при зарядке"</string>
+    <string name="text_284" formatted="false">"Выключать экран B при завершении"</string>
+    <string name="text_285" formatted="false">"Получать буфер обмена с B"</string>
+    <string name="text_286" formatted="false">"Уменьшать разрешение при ошибке"</string>
+    <string name="text_287" formatted="false">"Выключать экран B при подключении"</string>
+    <string name="text_288" formatted="false">"Записывать MP4 на A"</string>
+    <string name="text_289" formatted="false">"Подключаться повторно автоматически"</string>
+    <string name="text_290" formatted="false">"Скорость курсора"</string>
+    <string name="text_291" formatted="false">"0,2–5,0; в режиме мыши используется относительный тачпад с локальным курсором."</string>
+    <string name="text_292" formatted="false">"Дополнительные параметры сервера"</string>
+    <string name="text_293" formatted="false">"По одному key=value в строке. Полный список в справке; это не аргументы CLI вида --...."</string>
+    <string name="text_294" formatted="false">"Недопустимый параметр: "</string>
+    <string name="text_295" formatted="false">". Используйте key=value."</string>
+    <string name="text_296" formatted="false">"Неизвестный параметр сервера: "</string>
+    <string name="text_297" formatted="false">"Параметр "</string>
+    <string name="text_298" formatted="false">" управляется клиентом."</string>
+    <string name="text_299" formatted="false">" не может быть отрицательным"</string>
+    <string name="text_300" formatted="false">"Недопустимое значение FPS"</string>
+    <string name="text_301" formatted="false">"Скорость мыши должна быть от 0,2 до 5"</string>
+    <string name="text_302" formatted="false">"Недопустимый видеокодек"</string>
+    <string name="text_303" formatted="false">"Недопустимый аудиокодек"</string>
+    <string name="text_304" formatted="false">"Для записи MP4 требуется видео h264, а при включённом аудио — aac."</string>
+    <string name="app_name" formatted="false">"Scrcpy"</string>
+    <string name="language" formatted="false">"Язык приложения"</string>
+    <string name="language_hint" formatted="false">"Выберите язык интерфейса. Изменение применяется сразу и сохраняется."</string>
+    <string name="option_display" formatted="false">"Экран"</string>
+    <string name="option_camera" formatted="false">"Камера"</string>
+    <string name="option_front" formatted="false">"Фронтальная"</string>
+    <string name="option_back" formatted="false">"Основная"</string>
+    <string name="option_external" formatted="false">"Внешняя"</string>
+    <string name="option_output" formatted="false">"Аудиовыход устройства"</string>
+    <string name="option_playback" formatted="false">"Воспроизведение приложений"</string>
+    <string name="option_mic" formatted="false">"Микрофон"</string>
+    <string name="option_mic_unprocessed" formatted="false">"Микрофон • без обработки"</string>
+    <string name="option_mic_camcorder" formatted="false">"Микрофон • видеокамера"</string>
+    <string name="option_mic_voice_recognition" formatted="false">"Микрофон • распознавание речи"</string>
+    <string name="option_mic_voice_communication" formatted="false">"Микрофон • голосовая связь"</string>
+    <string name="option_voice_call" formatted="false">"Телефонный вызов"</string>
+    <string name="option_voice_call_uplink" formatted="false">"Телефонный вызов • исходящий канал"</string>
+    <string name="option_voice_call_downlink" formatted="false">"Телефонный вызов • входящий канал"</string>
+    <string name="option_voice_performance" formatted="false">"Голосовое выступление"</string>
+    <string name="help_intro" formatted="false">"Руководства, управление и справочник команд. Выберите раздел или используйте поиск."</string>
+    <string name="help_search_all" formatted="false">"Поиск по всем разделам…"</string>
+    <string name="help_search_topic" formatted="false">"Поиск в этом разделе…"</string>
+    <string name="help_all_topics" formatted="false">"‹ Все разделы"</string>
+    <string name="help_copy_command" formatted="false">"Скопировать команду"</string>
+    <string name="help_command_copied" formatted="false">"Команда скопирована"</string>
+    <string name="session_zoom_out" formatted="false">"Уменьшить −"</string>
+    <string name="session_zoom_reset" formatted="false">"Сбросить 1×"</string>
+    <string name="session_zoom_in" formatted="false">"Увеличить +"</string>
+    <string name="session_home" formatted="false">"⌂\nГлавная"</string>
+    <string name="session_mute" formatted="false">"Без звука"</string>
+    <string name="tab_help" formatted="false">"Справка"</string>
+    <string name="error_clipboard_invalid" formatted="false">"Недопустимые данные буфера обмена"</string>
+</resources>
