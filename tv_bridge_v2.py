@@ -4,6 +4,8 @@
 No arbitrary remote shell. Privileged capabilities require local CLI flags.
 """
 import argparse
+from contextlib import contextmanager
+import fcntl
 import base64
 from dataclasses import dataclass
 import datetime as dt
@@ -43,6 +45,30 @@ BridgeError = base.BridgeError
 
 class ActionDenied(BridgeError):
     pass
+
+
+@contextmanager
+def single_agent_lock(path=None):
+    """Permit only one v2 bridge worker per Termux home.
+
+    A non-blocking kernel lock prevents duplicate ADB key events when the
+    operator accidentally starts two --watch sessions. The lock is released
+    automatically on process exit, including an unexpected termination.
+    """
+    lock_path = Path(path) if path is not None else Path.home() / ".vitrum-tv-bridge-v2.lock"
+    descriptor = os.open(
+        str(lock_path), os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise BridgeError(
+                "Another TV bridge v2 session is already running; stop it first"
+            ) from exc
+        yield
+    finally:
+        os.close(descriptor)
 
 
 @dataclass(frozen=True)
@@ -375,17 +401,18 @@ def main():
     permissions = Permissions(args.allow_control, args.allow_screenshots,
                               args.allow_installs)
     try:
-        base.verify_access(args.device)
-        if args.once:
-            process(args.device, permissions)
-        else:
-            print("Watching authorized issues every 15s. Ctrl+C to stop.")
-            while True:
-                try:
-                    process(args.device, permissions)
-                except BridgeError as exc:
-                    print("Bridge unavailable: " + str(exc), file=sys.stderr)
-                time.sleep(15)
+        with single_agent_lock():
+            base.verify_access(args.device)
+            if args.once:
+                process(args.device, permissions)
+            else:
+                print("Watching authorized issues every 15s. Ctrl+C to stop.")
+                while True:
+                    try:
+                        process(args.device, permissions)
+                    except BridgeError as exc:
+                        print("Bridge unavailable: " + str(exc), file=sys.stderr)
+                    time.sleep(15)
     except KeyboardInterrupt:
         print("\nStopped.")
     except (BridgeError, ValueError) as exc:
