@@ -32,7 +32,7 @@ KEYCODES = {
 }
 READ_OPS = frozenset((*base.OPERATIONS, "app_list", "app_info", "vitrum_memory"))
 CONTROL_OPS = frozenset(("key", "launch_vitrum", "stop_vitrum", "launch_app"))
-SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum"))
+SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "ui_sweep"))
 ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS
 PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", re.ASCII)
 APK = re.compile(r"(?:Vitrum-TV[A-Za-z0-9._-]*|tv-debug)\.apk", re.ASCII)
@@ -55,7 +55,7 @@ class Permissions:
 def validate_args(op, args):
     if not isinstance(args, dict):
         return False
-    empty = (READ_OPS - {"app_info"}) | {"launch_vitrum", "stop_vitrum", "screenshot"}
+    empty = (READ_OPS - {"app_info"}) | {"launch_vitrum", "stop_vitrum", "screenshot", "ui_sweep"}
     if op in empty:
         return args == {}
     if op == "key":
@@ -116,7 +116,7 @@ def parse_issue(issue, now=None):
     return {"number": number, "op": op, "args": request["args"]}
 
 
-def capture_screenshot(device, number):
+def capture_screenshot(device, number, page=None):
     """Screenshot is opt-in and persists in private Git history."""
     try:
         p = subprocess.run(
@@ -130,7 +130,8 @@ def capture_screenshot(device, number):
         raise BridgeError("Screenshot capture failed")
     if len(png) > 5_000_000:
         raise BridgeError("Screenshot is too large")
-    target = "captures/issue-" + str(number) + ".png"
+    target = ("captures/issue-" + str(number)
+              + ("-" + page if page else "") + ".png")
     payload = {
         "message": "bridge: private TV screenshot for issue #" + str(number),
         "content": base64.b64encode(png).decode("ascii"),
@@ -148,6 +149,45 @@ def capture_screenshot(device, number):
             pass
     return ("Private screenshot: https://github.com/" + REPO + "/blob/main/"
             + target + "\nWARNING: retained in private Git history.")
+
+
+def require_vitrum_foreground(device):
+    """Fail closed unless Android reports Vitrum TV as the resumed Activity.
+
+    ADB key events are global, so this guard MUST precede every automated
+    navigation event and every screenshot to avoid acting on another TV app.
+    """
+    raw, _ = base.adb(device, "dumpsys", "activity", "activities")
+    if not re.search(
+        r"(?:topResumedActivity|mResumedActivity)\s*[:=][^\n]*\bapp\.rayclient\.tv/\.TvActivity\b",
+        raw,
+    ):
+        raise BridgeError("Vitrum TV is not confirmed as the foreground Activity")
+
+
+def audit_five_pages(device, number):
+    """Fixed, auditable read-only screenshot sequence; no issue-supplied actions."""
+    if not isinstance(number, int) or number <= 0:
+        raise BridgeError("Invalid issue identifier")
+    names = ("home", "servers", "apps", "setup", "settings")
+    base.adb(device, "am", "start", "-n", "app.rayclient.tv/.TvActivity")
+    time.sleep(1.0)
+    urls = []
+    require_vitrum_foreground(device)
+    for index, name in enumerate(names):
+        if index:
+            for key in ("21", "20", "23"):  # LEFT, DOWN, OK
+                require_vitrum_foreground(device)
+                base.adb(device, "input", "keyevent", key)
+                time.sleep(0.25)
+            time.sleep(0.5)
+        require_vitrum_foreground(device)
+        urls.append(name + ": " + capture_screenshot(device, number, page=name))
+    require_vitrum_foreground(device)
+    base.adb(device, "input", "keyevent", "4")  # Android BACK -> Home
+    time.sleep(0.25)
+    require_vitrum_foreground(device)
+    return "\n".join(urls) + "\nReturned to Home"
 
 
 def install_vitrum(device, args, downloads):
@@ -215,6 +255,10 @@ def run_action(device, request, permissions, downloads=None):
         base.adb(device, "monkey", "-p", package,
                  "-c", "android.intent.category.LEANBACK_LAUNCHER", "1")
         return "Launch requested for: " + package
+    if op == "ui_sweep":
+        if not permissions.control or not permissions.screenshot:
+            raise ActionDenied("Requires --allow-control AND --allow-screenshots")
+        return audit_five_pages(device, request["number"])
     if op == "screenshot":
         if not permissions.screenshot:
             raise ActionDenied("Requires local --allow-screenshots flag")
