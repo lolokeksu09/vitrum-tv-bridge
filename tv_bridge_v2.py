@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""Opt-in TV management via private GitHub Issues and local Termux ADB.
+
+No arbitrary remote shell. Privileged capabilities require local CLI flags.
+"""
+import argparse
+import base64
+from dataclasses import dataclass
+import datetime as dt
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+import time
+
+import tv_bridge as base
+
+REPO = base.REPO
+OWNER = base.OWNER
+PREFIX = "TVBRIDGE/v2 "
+MARKER = "<!-- tv-bridge-v2-result -->"
+MAX_REQUEST_AGE = dt.timedelta(hours=1)
+
+KEYCODES = {
+    "BACK": "4", "HOME": "3", "UP": "19", "DOWN": "20",
+    "LEFT": "21", "RIGHT": "22", "OK": "23", "ENTER": "66",
+    "MENU": "82", "VOLUME_UP": "24", "VOLUME_DOWN": "25",
+}
+READ_OPS = frozenset((*base.OPERATIONS, "app_list", "app_info", "vitrum_memory"))
+CONTROL_OPS = frozenset(("key", "launch_vitrum", "stop_vitrum", "launch_app"))
+SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum"))
+ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS
+PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", re.ASCII)
+APK = re.compile(r"(?:Vitrum-TV[A-Za-z0-9._-]*|tv-debug)\.apk", re.ASCII)
+SHA256 = re.compile(r"[a-f0-9]{64}", re.ASCII)
+
+BridgeError = base.BridgeError
+
+
+class ActionDenied(BridgeError):
+    pass
+
+
+@dataclass(frozen=True)
+class Permissions:
+    control: bool = False
+    screenshot: bool = False
+    install: bool = False
+
+
+def validate_args(op, args):
+    if not isinstance(args, dict):
+        return False
+    empty = (READ_OPS - {"app_info"}) | {"launch_vitrum", "stop_vitrum", "screenshot"}
+    if op in empty:
+        return args == {}
+    if op == "key":
+        return set(args) == {"key"} and type(args["key"]) is str and args["key"] in KEYCODES
+    if op in {"app_info", "launch_app"}:
+        return (set(args) == {"package"} and type(args["package"]) is str
+                and len(args["package"]) <= 150
+                and PACKAGE.fullmatch(args["package"]) is not None)
+    if op == "install_vitrum":
+        return (set(args) == {"filename", "sha256"}
+                and type(args["filename"]) is str
+                and len(args["filename"]) <= 90
+                and APK.fullmatch(args["filename"]) is not None
+                and type(args["sha256"]) is str
+                and SHA256.fullmatch(args["sha256"]) is not None)
+    return False
+
+
+def parse_issue(issue, now=None):
+    if not isinstance(issue, dict) or not isinstance(issue.get("author"), dict):
+        return None
+    if issue["author"].get("login") != OWNER:
+        return None
+    if str(issue.get("title", "")).startswith(base.PREFIX):
+        old = base.parse_issue(issue)
+        return {"number": old[0], "op": old[1], "args": {}} if old else None
+    title, body, number = issue.get("title"), issue.get("body"), issue.get("number")
+    if (type(number) is not int or number < 1 or not isinstance(title, str)
+            or not title.startswith(PREFIX) or not isinstance(body, str)
+            or len(body) > 1024):
+        return None
+    try:
+        request = json.loads(body)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(request, dict) or set(request) != {"v", "op", "args"}:
+        return None
+    op = request.get("op")
+    if type(request.get("v")) is not int or request["v"] != 2:
+        return None
+    if type(op) is not str or op not in ALL_OPS or title != PREFIX + op:
+        return None
+    if not validate_args(op, request.get("args")):
+        return None
+    created_at = issue.get("createdAt")
+    if not isinstance(created_at, str):
+        return None
+    try:
+        created = dt.datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if created.tzinfo is None:
+        return None
+    now = now or dt.datetime.now(dt.timezone.utc)
+    age = now - created
+    if age < dt.timedelta(seconds=-30) or age > MAX_REQUEST_AGE:
+        return None
+    return {"number": number, "op": op, "args": request["args"]}
+
+
+def capture_screenshot(device, number):
+    """Screenshot is opt-in and persists in private Git history."""
+    try:
+        p = subprocess.run(
+            ["adb", "-s", device, "exec-out", "screencap", "-p"],
+            capture_output=True, timeout=25
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        raise BridgeError("ADB screenshot unavailable") from exc
+    png = p.stdout
+    if p.returncode or not png.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise BridgeError("Screenshot capture failed")
+    if len(png) > 5_000_000:
+        raise BridgeError("Screenshot is too large")
+    target = "captures/issue-" + str(number) + ".png"
+    payload = {
+        "message": "bridge: private TV screenshot for issue #" + str(number),
+        "content": base64.b64encode(png).decode("ascii"),
+    }
+    fd, path = tempfile.mkstemp(prefix="vitrum-tv-capture-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(payload, stream)
+        base.gh("api", "--method", "PUT",
+                "repos/" + REPO + "/contents/" + target, "--input", path)
+    finally:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    return ("Private screenshot: https://github.com/" + REPO + "/blob/main/"
+            + target + "\nWARNING: retained in private Git history.")
+
+
+def install_vitrum(device, args, downloads):
+    downloads = Path(downloads) if downloads is not None else (
+        Path.home() / "storage" / "downloads"
+    )
+    apk = downloads / args["filename"]
+    if not apk.is_file() or apk.is_symlink():
+        raise BridgeError("APK is missing or is a symbolic link")
+    if not 0 < apk.stat().st_size <= 120_000_000:
+        raise BridgeError("APK size is not permitted")
+    digest = hashlib.sha256()
+    with apk.open("rb") as handle:
+        for block in iter(lambda: handle.read(65536), b""):
+            digest.update(block)
+    if digest.hexdigest() != args["sha256"]:
+        raise BridgeError("APK SHA-256 mismatch; nothing installed")
+    output, _ = base.execute(
+        ["adb", "-s", device, "install", "-r", str(apk)], timeout=120
+    )
+    if "Success" not in output:
+        raise BridgeError("ADB did not report installation success")
+    return "Installed SHA-256 verified APK: " + apk.name
+
+
+def run_action(device, request, permissions, downloads=None):
+    op, args = request["op"], request["args"]
+    if op in base.OPERATIONS:
+        return base.perform(device, op)
+    if op == "app_list":
+        raw, _ = base.adb(device, "pm", "list", "packages", "-3")
+        apps = [line.strip() for line in raw.splitlines() if line.startswith("package:")]
+        return "Third-party apps (first 80):\n" + "\n".join(apps[:80])
+    if op == "app_info":
+        package = args["package"]
+        raw, _ = base.adb(device, "dumpsys", "package", package)
+        name = re.search(r"(?m)^\s*versionName=(\S+)", raw)
+        code = re.search(r"(?m)^\s*versionCode=(\d+)", raw)
+        return ("\n".join((
+            "package: " + package,
+            "version: " + (name.group(1) if name else "unknown"),
+            "version_code: " + (code.group(1) if code else "unknown"),
+        )))
+    if op == "vitrum_memory":
+        raw, _ = base.adb(device, "dumpsys", "meminfo", "app.rayclient.tv")
+        rows = [line.strip()[:200] for line in raw.splitlines()
+                if "TOTAL PSS:" in line or "TOTAL SWAP PSS:" in line
+                or re.match(r"^\s*TOTAL\s+\d+", line)]
+        return "\n".join(rows[:12]) or "Memory details unavailable"
+
+    if op in CONTROL_OPS and not permissions.control:
+        raise ActionDenied("Requires local --allow-control flag")
+    if op == "key":
+        name = args["key"]
+        base.adb(device, "input", "keyevent", KEYCODES[name])
+        return "Remote key sent: " + name
+    if op == "launch_vitrum":
+        base.adb(device, "am", "start", "-n", "app.rayclient.tv/.TvActivity")
+        return "Vitrum TV launch requested"
+    if op == "stop_vitrum":
+        base.adb(device, "am", "force-stop", "app.rayclient.tv")
+        return "Vitrum TV process stopped; data preserved"
+    if op == "launch_app":
+        package = args["package"]
+        base.adb(device, "monkey", "-p", package,
+                 "-c", "android.intent.category.LEANBACK_LAUNCHER", "1")
+        return "Launch requested for: " + package
+    if op == "screenshot":
+        if not permissions.screenshot:
+            raise ActionDenied("Requires local --allow-screenshots flag")
+        return capture_screenshot(device, request["number"])
+    if op == "install_vitrum":
+        if not permissions.install:
+            raise ActionDenied("Requires local --allow-installs flag")
+        return install_vitrum(device, args, downloads)
+    raise BridgeError("Operation not supported")
+
+
+def already_answered(number):
+    comments = json.loads(base.gh(
+        "api", "repos/" + REPO + "/issues/" + str(number) + "/comments?per_page=100"
+    ))
+    return any((MARKER in item.get("body", "")
+                or base.MARKER in item.get("body", "")) for item in comments)
+
+
+def process(device, permissions):
+    issues = json.loads(base.gh(
+        "issue", "list", "-R", REPO, "--state", "open", "--limit", "100",
+        "--json", "number,title,body,author,createdAt"
+    ))
+    requests = [valid for issue in issues if (valid := parse_issue(issue))]
+    requests.sort(key=lambda item: item["number"])
+    if not requests:
+        print("No authorized pending requests.")
+        return
+    for request in requests[:10]:
+        number = request["number"]
+        if already_answered(number):
+            base.gh("issue", "close", str(number), "-R", REPO)
+            continue
+        try:
+            result = run_action(device, request, permissions)
+            status = "SUCCESS"
+        except ActionDenied as exc:
+            status, result = "DENIED", str(exc)
+        except BridgeError as exc:
+            status, result = "ERROR", str(exc)
+        result = re.sub(
+            r"(?i)\b(?:vless|vmess|trojan|ss|hysteria2)://\S+",
+            "<redacted link>", result
+        )
+        result = result[:5000].replace(chr(96) * 3, "'''")
+        code = chr(96) * 3
+        body = (MARKER + "\nStatus: " + status + " / " + request["op"]
+                + "\n\n" + code + "text\n" + result + "\n" + code
+                + "\n\nLocal Termux/ADB. No VPN traffic guarantee.")
+        base.gh("issue", "comment", str(number), "-R", REPO, "--body", body)
+        base.gh("issue", "close", str(number), "-R", REPO)
+        print("Completed #" + str(number) + " " + request["op"] + ": " + status)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Opt-in TV management bridge v2")
+    parser.add_argument("--device", default="192.168.0.160:5555")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--once", action="store_true")
+    mode.add_argument("--watch", action="store_true")
+    parser.add_argument("--allow-control", action="store_true",
+                        help="Enable remote, app launch, Vitrum process stop")
+    parser.add_argument("--allow-screenshots", action="store_true",
+                        help="Enable screenshot uploads into private Git history")
+    parser.add_argument("--allow-installs", action="store_true",
+                        help="Enable SHA-256 pinned local APK installation")
+    args = parser.parse_args()
+    permissions = Permissions(args.allow_control, args.allow_screenshots,
+                              args.allow_installs)
+    try:
+        base.verify_access(args.device)
+        if args.once:
+            process(args.device, permissions)
+        else:
+            print("Watching authorized issues every 15s. Ctrl+C to stop.")
+            while True:
+                try:
+                    process(args.device, permissions)
+                except BridgeError as exc:
+                    print("Bridge unavailable: " + str(exc), file=sys.stderr)
+                time.sleep(15)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    except (BridgeError, ValueError) as exc:
+        print("ERROR: " + str(exc), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
