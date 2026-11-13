@@ -250,5 +250,125 @@ class VerifiedArtifactInstall(unittest.TestCase):
                                   bridge.Permissions(install=True))
         run.assert_not_called()
 
+
+class MonolithVerifiedInstall(unittest.TestCase):
+    DEVICE = "192.168.0.160:5555"
+    CI_RUN = 43482516803
+    APK_CONTENT = b"synthetic-monolith-apk-bytes"
+    REPO = "lolokeksu09/MONOLITH-TV"
+
+    def request(self, digest):
+        return {"number": 123, "op": "install_monolith_ci", "args": {
+            "run_id": self.CI_RUN, "sha256": digest,
+        }}
+
+    def metadata(self, **overrides):
+        d = {
+            "name": "Android TV CI", "head_branch": "main",
+            "event": "push", "status": "completed",
+            "conclusion": "success",
+            "repository": {"full_name": self.REPO}
+        }
+        d.update(overrides)
+        return d
+
+    def test_request_strictly_validated(self):
+        args = {"run_id": self.CI_RUN, "sha256": "a" * 64}
+        self.assertIsNotNone(bridge.parse_issue(
+            issue("install_monolith_ci", args), now=NOW
+        ))
+        for bad in [
+            {"run_id": True, "sha256": "a" * 64},
+            {"run_id": self.CI_RUN, "sha256": "invalid"},
+            {"run_id": self.CI_RUN, "sha256": "a" * 64, "repo": "bad/repo"},
+            {"run_id": str(self.CI_RUN), "sha256": "a" * 64},
+        ]:
+            self.assertIsNone(bridge.parse_issue(
+                issue("install_monolith_ci", bad), now=NOW
+            ))
+
+    @mock.patch.object(bridge.base, "gh")
+    @mock.patch.object(bridge.subprocess, "run")
+    def test_denied_without_local_install_opt_in(self, run, gh):
+        with self.assertRaises(bridge.ActionDenied):
+            bridge.run_action(self.DEVICE, self.request("a" * 64),
+                              bridge.Permissions(control=True, screenshot=True))
+        gh.assert_not_called()
+        run.assert_not_called()
+
+    @mock.patch.object(bridge.base, "execute")
+    @mock.patch.object(bridge.subprocess, "run")
+    @mock.patch.object(bridge.base, "gh")
+    def test_refuses_non_main_or_untrusted_ci(self, gh, run, execute):
+        import json
+        variants = [
+            self.metadata(name="Other workflow"),
+            self.metadata(head_branch="feature/test"),
+            self.metadata(event="pull_request"),
+            self.metadata(status="in_progress"),
+            self.metadata(conclusion="failure"),
+            self.metadata(repository={"full_name": "another/repo"}),
+        ]
+        for variant in variants:
+            gh.return_value = json.dumps(variant)
+            with self.assertRaisesRegex(bridge.BridgeError, "provenance"):
+                bridge.run_action(self.DEVICE, self.request("a" * 64),
+                                  bridge.Permissions(install=True))
+        run.assert_not_called()
+        execute.assert_not_called()
+
+    @mock.patch.object(bridge.base, "execute")
+    @mock.patch.object(bridge.subprocess, "run")
+    @mock.patch.object(bridge.base, "gh")
+    def test_sha_match_installs_once_without_data_clear(self, gh, run, execute):
+        import hashlib
+        import json
+        gh.return_value = json.dumps(self.metadata())
+
+        def create_downloaded_apk(argv, **_kwargs):
+            folder = Path(argv[argv.index("-D") + 1])
+            (folder / "app-debug.apk").write_bytes(self.APK_CONTENT)
+            return mock.Mock(returncode=0)
+
+        run.side_effect = create_downloaded_apk
+        execute.return_value = ("Success", 0)
+        digest = hashlib.sha256(self.APK_CONTENT).hexdigest()
+        result = bridge.run_action(
+            self.DEVICE, self.request(digest), bridge.Permissions(install=True)
+        )
+        self.assertIn("Installed verified MONOLITH TV", result)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0][:4], [
+            "gh", "run", "download", str(self.CI_RUN)
+        ])
+        cmd = execute.call_args.args[0]
+        self.assertEqual(cmd[:5], [
+            "adb", "-s", self.DEVICE, "install", "-r"
+        ])
+        self.assertEqual(Path(cmd[-1]).name, "app-debug.apk")
+        self.assertNotIn("uninstall", cmd)
+        self.assertNotIn("pm clear", " ".join(cmd))
+
+    @mock.patch.object(bridge.base, "execute")
+    @mock.patch.object(bridge.subprocess, "run")
+    @mock.patch.object(bridge.base, "gh")
+    def test_sha_mismatch_never_installs(self, gh, run, execute):
+        import json
+        gh.return_value = json.dumps(self.metadata())
+
+        def download(argv, **_kwargs):
+            folder = Path(argv[argv.index("-D") + 1])
+            (folder / "app-debug.apk").write_bytes(self.APK_CONTENT)
+            return mock.Mock(returncode=0)
+
+        run.side_effect = download
+        with self.assertRaisesRegex(bridge.BridgeError, "SHA-256 mismatch"):
+            bridge.run_action(
+                self.DEVICE, self.request("0" * 64),
+                bridge.Permissions(install=True)
+            )
+        execute.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
