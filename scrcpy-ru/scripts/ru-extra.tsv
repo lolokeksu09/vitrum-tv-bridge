@@ -1,0 +1,32 @@
+app_name|Scrcpy
+language|Язык приложения
+language_hint|Выберите язык интерфейса. Изменение применяется сразу и сохраняется.
+option_display|Экран
+option_camera|Камера
+option_front|Фронтальная
+option_back|Основная
+option_external|Внешняя
+option_output|Аудиовыход устройства
+option_playback|Воспроизведение приложений
+option_mic|Микрофон
+option_mic_unprocessed|Микрофон • без обработки
+option_mic_camcorder|Микрофон • видеокамера
+option_mic_voice_recognition|Микрофон • распознавание речи
+option_mic_voice_communication|Микрофон • голосовая связь
+option_voice_call|Телефонный вызов
+option_voice_call_uplink|Телефонный вызов • исходящий канал
+option_voice_call_downlink|Телефонный вызов • входящий канал
+option_voice_performance|Голосовое выступление
+help_intro|Руководства, управление и справочник команд. Выберите раздел или используйте поиск.
+help_search_all|Поиск по всем разделам…
+help_search_topic|Поиск в этом разделе…
+help_all_topics|‹ Все разделы
+help_copy_command|Скопировать команду
+help_command_copied|Команда скопирована
+session_zoom_out|Уменьшить −
+session_zoom_reset|Сбросить 1×
+session_zoom_in|Увеличить +
+session_home|⌂\nГлавная
+session_mute|Без звука
+tab_help|Справка
+error_clipboard_invalid|Недопустимые данные буфера обмена
