@@ -1,0 +1,84 @@
+name: Build Scrcpy RU APK
+
+on:
+  push:
+    branches:
+      - build/scrcpy-ru-20261114
+    paths:
+      - '.github/workflows/build-scrcpy-ru.yml'
+      - 'scrcpy-ru/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build translated Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout localization
+        uses: actions/checkout@v4
+      - name: Checkout pinned upstream
+        shell: bash
+        run: |
+          git clone https://github.com/sw3gmach1n3/Scrcpy_for_Android.git android_source
+          cd android_source
+          git checkout --detach d4a9a8caaaf8f0ff21ca6e3a3a406224b9116dd3
+      - name: Apply complete localization
+        shell: bash
+        run: |
+          python3 scrcpy-ru/apply_to_source.py android_source
+          python3 - <<'PY'
+          import pathlib, xml.etree.ElementTree as ET
+          root=pathlib.Path('android_source/app/src/main/res')
+          files=[root/f'values{x}/strings.xml' for x in ('','-ro','-ru')]
+          for file in files:
+              doc=ET.parse(file).getroot()
+              names={e.get('name') for e in doc}
+              if len(names)!=336 or 'app_name' not in names:
+                  raise SystemExit(f'Invalid localization resource: {file} ({len(names)} strings)')
+              text=file.read_text(encoding='utf-8')
+              before='<string name="app_name" formatted="false">"Scrcpy"</string>'
+              assert text.count(before)==1, f'Unexpected label in {file}'
+              file.write_text(text.replace(before,'<string name="app_name" formatted="false">"Scrcpy RU"</string>'),encoding='utf-8')
+          gradle=pathlib.Path('android_source/app/build.gradle')
+          s=gradle.read_text(encoding='utf-8')
+          before="applicationId 'ro.sw3g.scrcpy'"
+          assert s.count(before)==1
+          gradle.write_text(s.replace(before,"applicationId 'ro.sw3g.scrcpy.ru'"),encoding='utf-8')
+          print('Localization validated; distinct package ro.sw3g.scrcpy.ru for side-by-side installation')
+          PY
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android platform 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build debug APK
+        working-directory: android_source
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug -Pandroid.injected.testOnly=false
+      - name: Verify APK and calculate digest
+        shell: bash
+        run: |
+          set -e
+          APK=android_source/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -8
+          sha256sum "$APK"
+          cp "$APK" Scrcpy-RU-1.5.1-debug.apk
+          echo "### APK built" >> "$GITHUB_STEP_SUMMARY"
+          sha256sum Scrcpy-RU-1.5.1-debug.apk >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scrcpy-RU-APK
+          path: Scrcpy-RU-1.5.1-debug.apk
+          if-no-files-found: error
