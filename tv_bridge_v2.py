@@ -32,7 +32,7 @@ KEYCODES = {
 }
 READ_OPS = frozenset((*base.OPERATIONS, "app_list", "app_info", "vitrum_memory"))
 CONTROL_OPS = frozenset(("key", "launch_vitrum", "stop_vitrum", "launch_app"))
-SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "ui_sweep"))
+SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "install_vitrum_ci", "ui_sweep"))
 ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS
 PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", re.ASCII)
 APK = re.compile(r"(?:Vitrum-TV[A-Za-z0-9._-]*|tv-debug)\.apk", re.ASCII)
@@ -64,6 +64,11 @@ def validate_args(op, args):
         return (set(args) == {"package"} and type(args["package"]) is str
                 and len(args["package"]) <= 150
                 and PACKAGE.fullmatch(args["package"]) is not None)
+    if op == "install_vitrum_ci":
+        return (set(args) == {"run_id", "sha256"}
+                and type(args["run_id"]) is int and 0 < args["run_id"] < 10**12
+                and type(args["sha256"]) is str
+                and SHA256.fullmatch(args["sha256"]) is not None)
     if op == "install_vitrum":
         return (set(args) == {"filename", "sha256"}
                 and type(args["filename"]) is str
@@ -213,6 +218,42 @@ def install_vitrum(device, args, downloads):
     return "Installed SHA-256 verified APK: " + apk.name
 
 
+def install_vitrum_from_ci(device, args):
+    """Download from a successful, known Vitrum TV workflow only.
+
+    The caller pins the *exact* APK SHA-256. Installation still uses adb -r
+    and never uninstalls old builds or clears app data.
+    """
+    run_id = args["run_id"]
+    metadata = json.loads(base.gh(
+        "api", "repos/lolokeksu09/Vitrum/actions/runs/" + str(run_id)
+    ))
+    if (metadata.get("name") != "Vitrum TV developer shell verification"
+            or metadata.get("head_branch") != "feature/vitrum-tv-foundation"
+            or metadata.get("conclusion") != "success"):
+        raise BridgeError("Workflow provenance not confirmed; refusing installation")
+    with tempfile.TemporaryDirectory(prefix="vitrum-tv-trusted-build-") as folder:
+        argv = [
+            "gh", "run", "download", str(run_id),
+            "-R", "lolokeksu09/Vitrum",
+            "-n", "Vitrum-TV-0.1.0-dev-ARM32-shell",
+            "-D", folder,
+        ]
+        try:
+            result = subprocess.run(
+                argv, capture_output=True, text=True, timeout=120
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            raise BridgeError("CI artifact download unavailable") from exc
+        if result.returncode:
+            raise BridgeError("CI artifact download failed; not installing")
+        return install_vitrum(
+            device,
+            {"filename": "tv-debug.apk", "sha256": args["sha256"]},
+            downloads=Path(folder),
+        )
+
+
 def run_action(device, request, permissions, downloads=None):
     op, args = request["op"], request["args"]
     if op in base.OPERATIONS:
@@ -263,6 +304,10 @@ def run_action(device, request, permissions, downloads=None):
         if not permissions.screenshot:
             raise ActionDenied("Requires local --allow-screenshots flag")
         return capture_screenshot(device, request["number"])
+    if op == "install_vitrum_ci":
+        if not permissions.install:
+            raise ActionDenied("Requires local --allow-installs flag")
+        return install_vitrum_from_ci(device, args)
     if op == "install_vitrum":
         if not permissions.install:
             raise ActionDenied("Requires local --allow-installs flag")
