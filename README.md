@@ -1,42 +1,84 @@
-# Vitrum TV — private diagnostic bridge
+# Vitrum TV — private Termux / ADB bridge
 
-Read-only relay from **private GitHub Issues** to BOXY via **Termux + ADB** on the phone. ChatGPT can submit a request through the connected GitHub integration; the phone executes it locally only when the owner starts this script, then writes a reply in the private issue.
+A **locally operated, opt-in** bridge between ChatGPT's connected GitHub account and a BOXY Android TV on the owner's home Wi-Fi. GitHub Issues in this **private repository** carry narrow, typed requests. A local Termux agent checks them, runs permitted ADB commands, posts results in the same issue and closes it.
 
-## Security contract
+**Working v1:** `tv_bridge.py` — read-only diagnostics.
+**Expanded v2:** `tv_bridge_v2.py` — additional diagnostics and separately authorized remote/app controls, screenshots and Vitrum TV debug APK installation.
 
-- No SSH server, public TCP port, ADB port forwarding, root, unrestricted shell, app installation or system changes.
-- The agent accepts **only** requests authored by `lolokeksu09` with exact title/JSON shape and one of four hard-coded operations.
-- No issue text becomes an ADB argument or shell command.
-- Private GitHub Issues contain the returned **non-secret** device metadata; anybody with read access to this private repo can view that data.
-- `--once` makes one pass and exits. `--watch` polls every 15 seconds while Termux is running; stop with Ctrl+C. Phone sleep can interrupt it.
-- Keep ADB TCP/5555 confined to a trusted home Wi-Fi network. Do **not** forward this port to the Internet. Unlike GitHub HTTPS, TCP/5555 ADB should not be assumed safe on an untrusted LAN.
+Instructions in Russian: [README.ru.md](README.ru.md).
 
-## Install on the phone
+## Phone setup
 
-You already confirmed `adb connect 192.168.0.160:5555` works and `gh auth login` is configured.
+The phone is already authenticated to GitHub CLI and ADB to `192.168.0.160:5555`.
 
 ```bash
 pkg install -y python gh android-tools
-gh repo clone lolokeksu09/vitrum-tv-bridge ~/vitrum-tv-bridge
+git -C ~/vitrum-tv-bridge pull --ff-only
 python ~/vitrum-tv-bridge/test_tv_bridge.py
-python ~/vitrum-tv-bridge/tv_bridge.py --once
+python ~/vitrum-tv-bridge/test_tv_bridge_v2.py
 ```
 
-The last command processes any requests created in the private repository. It writes a comment to the request and closes it. GitHub credentials remain within Termux. If the repo was already cloned, use `git -C ~/vitrum-tv-bridge pull --ff-only` instead.
+If this repo has not been cloned, first run `gh repo clone lolokeksu09/vitrum-tv-bridge ~/vitrum-tv-bridge`. Do not share GitHub auth tokens or ADB private keys.
 
-### Operations
+### Start a session
 
-| Operation | Request title | Exact issue body |
-|---|---|---|
-| Device model, OS, ABI and patch | `TVBRIDGE/v1 device_summary` | `{"v":1,"op":"device_summary"}` |
-| Vitrum TV install/version/running | `TVBRIDGE/v1 vitrum_status` | `{"v":1,"op":"vitrum_status"}` |
-| Screen size and density | `TVBRIDGE/v1 display_status` | `{"v":1,"op":"display_status"}` |
-| Focused window | `TVBRIDGE/v1 focus_status` | `{"v":1,"op":"focus_status"}` |
+Read-only, one pass:
 
-Other requests are ignored. A comment marked `tv-bridge-v1-result` prevents duplicate execution if the process stops between posting its result and closing the issue.
+```bash
+python ~/vitrum-tv-bridge/tv_bridge_v2.py --once
+```
 
-## Limitations
+Allow non-destructive TV remote operations and app launches while Termux is open:
 
-This version is **diagnostic only**, not remote control. It cannot install APKs, press remote buttons, obtain screenshots, read credentials or inspect VPN traffic. Each operation uses an allowlisted set of read-only ADB calls. For write operations, any later revision needs a separate user approval mechanism — simply posting an issue would not constitute consent.
+```bash
+python ~/vitrum-tv-bridge/tv_bridge_v2.py --watch --allow-control
+```
 
-No persistent unattended access is established by cloning or running `--once`. Stop the agent and disable wireless debugging when finished.
+Optional extra permissions; **off unless explicitly enabled in the local command**:
+
+- `--allow-screenshots` — captures current TV screen and uploads PNG to `captures/` in **private Git history**. The image can display personal information and removing a file from a later commit does not erase history. Enable only when the current TV screen is safe to share with private-repo readers.
+- `--allow-installs` — installs a local APK matching the Vitrum-TV filename restriction after matching an exact supplied SHA-256. This is **not a signing certificate / APK identity verification**; install only APKs from a trusted, verified source. Existing install may reject a different debug certificate. This command does not uninstall an app or erase data.
+
+All three switches may be combined only if the operator wants those permissions active during the session. Stop immediately with **Ctrl+C**. The phone sleeping or disconnecting from the local network interrupts the bridge; this is not persistent background access.
+
+## V2 protocol
+
+Each GitHub Issue must be created by `lolokeksu09`, within the previous **1 hour**, with an exact title `TVBRIDGE/v2 <operation>` and JSON body of the following form:
+
+```json
+{"v":2,"op":"launch_vitrum","args":{}}
+```
+
+All three JSON keys are mandatory; extra keys, unknown operations, unexpected argument shapes, request authors or title/body mismatches are ignored. The agent authenticates the GitHub CLI owner before doing anything.
+
+| Operation | Required args | Local permission | Effect |
+|---|---|---|---|
+| `device_summary` | `{}` | Default | Android, ABI, model, security patch |
+| `vitrum_status` | `{}` | Default | Vitrum TV package, version, process |
+| `display_status` | `{}` | Default | Screen size / density |
+| `focus_status` | `{}` | Default | Focused system window |
+| `app_list` | `{}` | Default | First 80 third-party package IDs |
+| `app_info` | `{"package":"com.example.app"}` | Default | Installed package version |
+| `vitrum_memory` | `{}` | Default | Current Vitrum TV memory summary |
+| `launch_vitrum` | `{}` | `--allow-control` | Open Vitrum TV |
+| `stop_vitrum` | `{}` | `--allow-control` | Force-stop Vitrum TV without deleting data; may interrupt future VPN sessions |
+| `launch_app` | `{"package":"com.example.app"}` | `--allow-control` | Request app launch through Android TV launcher |
+| `key` | `{"key":"LEFT"}` | `--allow-control` | Send validated key event |
+| `screenshot` | `{}` | `--allow-screenshots` | Store PNG in private Git history |
+| `install_vitrum` | `{"filename":"Vitrum-TV-BOXY-0.1.0-dev.apk","sha256":"<64 lowercase hex digits>"}` | `--allow-installs` | Install a matching local APK file after SHA-256 check |
+
+Allowed key names: `UP`, `DOWN`, `LEFT`, `RIGHT`, `OK`, `BACK`, `HOME`, `ENTER`, `MENU`, `VOLUME_UP`, `VOLUME_DOWN`. The APK file must be inside `~/storage/downloads` and not a symlink. The request supplies **only** an allowlisted operation and validated arguments; it cannot supply Android shell syntax.
+
+V1 owner-authored read-only requests remain compatible with v2.
+
+## Trust boundary and limitations
+
+- **No arbitrary shell**, root, deletion, firmware flashing, accessibility services, remote arbitrary file access, VPN credential retrieval, SSH server, port forwarding or inbound Internet access.
+- The **local** operator grants or withholds privileged capabilities using launch flags; merely creating a GitHub Issue is not consent to an action if its flag is disabled.
+- Posting to a private GitHub repository uses HTTPS; the **local ADB TCP/5555 session should only be used on trusted LAN**. Never expose 5555 to the Internet.
+- Anyone with access to the private repo could read issue results and uploaded screenshots. Screenshots remain in Git history after removal from the current branch.
+- A GitHub owner credential compromise can forge requests; strict schema, TTL, limited keycodes and local flags reduce the impact. The bridge is **not** an end-to-end cryptographic command channel.
+- A successful installation or Activity launch does **not** demonstrate VPN TUN/DNS/network functionality.
+- Process errors are returned as bounded result comments; completed requests are closed. Responses with existing result markers are not executed twice.
+
+Run the GitHub safety tests with `python -m unittest -v test_tv_bridge.py test_tv_bridge_v2.py`. No real ADB/network calls are made by these unit tests.
