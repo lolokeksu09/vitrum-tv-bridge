@@ -193,5 +193,50 @@ class ForegroundGuard(unittest.TestCase):
         self.assertIn("settings", result)
         self.assertIn("Returned to Home", result)
 
+
+
+class VerifiedArtifactInstall(unittest.TestCase):
+    DEVICE = "192.168.0.160:5555"
+
+    def test_ci_install_requires_strict_run_id_and_sha(self):
+        args = {"run_id": 43376055711, "sha256": "a" * 64}
+        self.assertIsNotNone(bridge.parse_issue(
+            issue("install_vitrum_ci", args), now=NOW))
+        for invalid in [
+            {"run_id": True, "sha256": "a" * 64},
+            {"run_id": -1, "sha256": "a" * 64},
+            {"run_id": "43376055711", "sha256": "a" * 64},
+            {"run_id": 43376055711, "sha256": "invalid"},
+            {"run_id": 43376055711, "sha256": "a"*64, "repo": "other/evil"},
+        ]:
+            self.assertIsNone(bridge.parse_issue(
+                issue("install_vitrum_ci", invalid), now=NOW))
+
+    def test_ci_install_is_denied_without_local_install_flag(self):
+        task = {"number": 51, "op": "install_vitrum_ci",
+                "args": {"run_id": 43376055711, "sha256": "a" * 64}}
+        with self.assertRaises(bridge.ActionDenied):
+            bridge.run_action(self.DEVICE, task, bridge.Permissions())
+
+    @mock.patch.object(bridge.base, "gh")
+    @mock.patch.object(bridge.subprocess, "run")
+    def test_ci_install_rejects_non_tv_or_failed_workflow_without_download(self, run, gh):
+        task = {"number": 51, "op": "install_vitrum_ci",
+                "args": {"run_id": 43376055711, "sha256": "a" * 64}}
+        import json
+        for meta in [
+            {"name": "Deploy", "conclusion": "success",
+             "head_branch": "feature/vitrum-tv-foundation"},
+            {"name": "Vitrum TV developer shell verification", "conclusion": "failure",
+             "head_branch": "feature/vitrum-tv-foundation"},
+            {"name": "Vitrum TV developer shell verification", "conclusion": "success",
+             "head_branch": "main"},
+        ]:
+            gh.return_value = json.dumps(meta)
+            with self.assertRaises(bridge.BridgeError):
+                bridge.run_action(self.DEVICE, task,
+                                  bridge.Permissions(install=True))
+        run.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()
