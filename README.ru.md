@@ -104,12 +104,12 @@ python ~/vitrum-tv-bridge/tv_bridge_v2.py --watch --allow-control --allow-screen
 Точный формат частной GitHub-задачи:
 
 \`\`\`json
-{"v":2,"op":"install_monolith_ci","args":{"run_id":43482516803,"sha256":"<SHA-256 APK>"}}
+{"v":2,"op":"install_monolith_ci","args":{"run_id":43482516803,"sha256":"849e3c042f91b5f56b1f90ba8c7cc431a3f08b162726a52cee6b94a3be3e430f"}}
 \`\`\`
 
-Вместо пояснения \`<SHA-256 APK>\` должен использоваться
-вычисленный хеш именно APK из указанного артефакта. Хеш ZIP-архива
-GitHub Actions не подходит. Не выполняй запрос с примером из документации.
+Показанный хеш рассчитан по APK из GitHub Actions run 43482516803,
+commit 75b653f. Для других запусков вычисляй SHA-256 заново — хеш
+ZIP-архива GitHub Actions не подходит.
 
 ## Автоматический аудит пяти вкладок (без ручного ADB)
 
