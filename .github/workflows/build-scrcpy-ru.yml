@@ -55,10 +55,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Install Android platform 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Install Android platform 35 using preinstalled SDK
+        shell: bash
+        run: |
+          set -e
+          echo "Android SDK: $ANDROID_HOME"
+          sdkmanager_bin="$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -type f -name sdkmanager | head -n 1)"
+          test -n "$sdkmanager_bin"
+          yes | "$sdkmanager_bin" --licenses > /dev/null || true
+          "$sdkmanager_bin" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build debug APK
         working-directory: android_source
         shell: bash
