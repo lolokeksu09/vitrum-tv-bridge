@@ -26,7 +26,7 @@ Russian localization and development staging area for the Android-to-Android cli
 
 This staging branch does **not** vendor the upstream Android sources. The workflow checks out a pinned upstream commit, applies `apply_to_source.py`, changes application identity, validates strings, builds with Gradle, and uploads the APK as an Actions artifact. No code or release in this directory should be described as tested on a device unless device test evidence exists.
 
-**Build:** [Build Scrcpy RU APK](../../.github/workflows/build-scrcpy-ru.yml) (relative link from this subtree may depend on GitHub tree navigation; use the repository's Actions tab).
+**Build:** [Build Scrcpy RU APK](../.github/workflows/build-scrcpy-ru.yml).
 
 ## Security and attribution
 
