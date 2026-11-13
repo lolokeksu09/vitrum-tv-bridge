@@ -104,11 +104,11 @@ python ~/vitrum-tv-bridge/tv_bridge_v2.py --watch --allow-control --allow-screen
 Точный формат частной GitHub-задачи:
 
 \`\`\`json
-{"v":2,"op":"install_monolith_ci","args":{"run_id":43482516803,"sha256":"849e3c042f91b5f56b1f90ba8c7cc431a3f08b162726a52cee6b94a3be3e430f"}}
+{"v":2,"op":"install_monolith_ci","args":{"run_id":43485077090,"sha256":"a2c542e5d9514213282054b1bc6fce0a2e7fffbf6c965fc50f7192f30d78ce47"}}
 \`\`\`
 
-Показанный хеш рассчитан по APK из GitHub Actions run 43482516803,
-commit 75b653f. Для других запусков вычисляй SHA-256 заново — хеш
+Показанный хеш рассчитан по APK из GitHub Actions run 43485077090,
+commit 97abada, MONOLITH TV 0.1.2-prealpha. Для других запусков вычисляй SHA-256 заново — хеш
 ZIP-архива GitHub Actions не подходит.
 
 ## Автоматический аудит пяти вкладок (без ручного ADB)
