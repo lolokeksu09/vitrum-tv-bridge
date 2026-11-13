@@ -34,7 +34,8 @@ KEYCODES = {
 }
 READ_OPS = frozenset((*base.OPERATIONS, "app_list", "app_info", "vitrum_memory"))
 CONTROL_OPS = frozenset(("key", "launch_vitrum", "stop_vitrum", "launch_app"))
-SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "install_vitrum_ci", "ui_sweep"))
+SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "install_vitrum_ci",
+                          "install_monolith_ci", "ui_sweep"))
 ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS
 PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", re.ASCII)
 APK = re.compile(r"(?:Vitrum-TV[A-Za-z0-9._-]*|tv-debug)\.apk", re.ASCII)
@@ -90,7 +91,7 @@ def validate_args(op, args):
         return (set(args) == {"package"} and type(args["package"]) is str
                 and len(args["package"]) <= 150
                 and PACKAGE.fullmatch(args["package"]) is not None)
-    if op == "install_vitrum_ci":
+    if op in {"install_vitrum_ci", "install_monolith_ci"}:
         return (set(args) == {"run_id", "sha256"}
                 and type(args["run_id"]) is int and 0 < args["run_id"] < 10**12
                 and type(args["sha256"]) is str
@@ -280,6 +281,59 @@ def install_vitrum_from_ci(device, args):
         )
 
 
+def install_monolith_from_ci(device, args):
+    """Install exactly one pinned MONOLITH-TV main-branch preview APK.
+
+    No uninstall, clear data, HOME selection, shell, or arbitrary URLs.
+    A mismatched debug signing certificate is reported as an install failure.
+    """
+    repository = "lolokeksu09/MONOLITH-TV"
+    run_id = args["run_id"]
+    metadata = json.loads(base.gh(
+        "api", "repos/" + repository + "/actions/runs/" + str(run_id)
+    ))
+    if (metadata.get("name") != "Android TV CI"
+            or metadata.get("head_branch") != "main"
+            or metadata.get("event") != "push"
+            or metadata.get("status") != "completed"
+            or metadata.get("conclusion") != "success"
+            or (metadata.get("repository") or {}).get("full_name") != repository):
+        raise BridgeError("MONOLITH CI provenance not confirmed; refusing installation")
+    with tempfile.TemporaryDirectory(prefix="monolith-tv-trusted-build-") as folder:
+        argv = [
+            "gh", "run", "download", str(run_id), "-R", repository,
+            "-n", "MONOLITH-TV-preview-debug", "-D", folder,
+        ]
+        try:
+            downloaded = subprocess.run(
+                argv, capture_output=True, text=True, timeout=120
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            raise BridgeError("MONOLITH CI artifact download unavailable") from exc
+        if downloaded.returncode:
+            raise BridgeError("MONOLITH CI artifact download failed; not installing")
+
+        apk = Path(folder) / "app-debug.apk"
+        if not apk.is_file() or apk.is_symlink():
+            raise BridgeError("Expected MONOLITH app-debug.apk is missing or a symlink")
+        size = apk.stat().st_size
+        if not 0 < size <= 120_000_000:
+            raise BridgeError("MONOLITH APK size is not permitted")
+        digest = hashlib.sha256()
+        with apk.open("rb") as handle:
+            for block in iter(lambda: handle.read(65536), b""):
+                digest.update(block)
+        if digest.hexdigest() != args["sha256"]:
+            raise BridgeError("MONOLITH APK SHA-256 mismatch; nothing installed")
+
+        output, _ = base.execute(
+            ["adb", "-s", device, "install", "-r", str(apk)], timeout=120
+        )
+        if "Success" not in output:
+            raise BridgeError("MONOLITH ADB installation did not report success")
+        return "Installed verified MONOLITH TV preview from CI run " + str(run_id)
+
+
 def run_action(device, request, permissions, downloads=None):
     op, args = request["op"], request["args"]
     if op in base.OPERATIONS:
@@ -334,6 +388,10 @@ def run_action(device, request, permissions, downloads=None):
         if not permissions.install:
             raise ActionDenied("Requires local --allow-installs flag")
         return install_vitrum_from_ci(device, args)
+    if op == "install_monolith_ci":
+        if not permissions.install:
+            raise ActionDenied("Requires local --allow-installs flag")
+        return install_monolith_from_ci(device, args)
     if op == "install_vitrum":
         if not permissions.install:
             raise ActionDenied("Requires local --allow-installs flag")
