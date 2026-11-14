@@ -1,6 +1,6 @@
 # Scrcpy RU — Android TV remote overlay v1
 
-Status: feature branch `feature/scrcpy-tv-remote-v1`; integration and Android tests are required before considering it accepted.
+Status: feature branch `feature/scrcpy-tv-remote-v1`. Code build and 21 unit tests passed in [GitHub Actions 43560016687](https://github.com/lolokeksu09/vitrum-tv-bridge/actions/runs/43560016687); device acceptance is still NOT RUN.
 
 ## Implemented
 
@@ -35,3 +35,11 @@ Status: feature branch `feature/scrcpy-tv-remote-v1`; integration and Android te
 ## Follow-up
 
 After device validation, address real button sizing/orientation based on actual screenshots and user observations; next reliability work remains connection-stage diagnostics, retry backoff and log rotation per `ROADMAP.md`.
+
+## Verified build (2026-11-14)
+
+- Source commit `6b603d491b896a442fd96e5f19c0a5d6f73fc065`; no later code edits.
+- 21 JUnit tests, 0 failures/errors; static TV key/overlay/resource checks PASS.
+- Debug APK build PASS; `apksigner verify` v2 PASS; APK ID `ro.sw3g.scrcpy.ru.tvremote`, versionCode 12, versionName `1.8.0-tv-remote-v1`.
+- APK SHA-256: `b27ef8c4ab17fa8cedf396e2fa694704db87a8d4bf8e143927e29d5ed1d31525`.
+- Physical Android phone + Android TV validation **NOT RUN**. A passing build does not confirm buttons were exercised on real hardware.
