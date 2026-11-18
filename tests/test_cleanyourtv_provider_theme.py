@@ -19,7 +19,7 @@ class ProviderThemeTests(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "Unexpected target"):
                 ProviderTheme("192.168.1.5:5555", Path(folder))
             t = ProviderTheme("192.168.0.160:5555", Path(folder))
-            for invalid in ("wallpapers/secret.jpg", "wallpaper.jpg", "../../config.json"):
+            for invalid in ("wallpapers/secret.jpg", "../../config.json"):
                 with self.assertRaisesRegex(ProviderError, "Unsupported"):
                     t._uri(invalid)
 
@@ -48,11 +48,12 @@ class ProviderThemeTests(unittest.TestCase):
 
     @mock.patch.object(ProviderTheme, "read")
     def test_backups_are_complete_before_modification(self, read):
-        read.side_effect = [b'{"columns":6}', b"prior-revision"]
+        read.side_effect = [b"\x89PNG\r\n\x1a\nORIGINAL", b'{"columns":6}', b"prior-revision"]
         with tempfile.TemporaryDirectory() as folder:
             t = ProviderTheme("192.168.0.160:5555", Path(folder))
             state = t.backup_files()
-            self.assertEqual(state, {"config.json": True, "theme_revision": True})
+            self.assertEqual(state, {"wallpaper.jpg": True, "config.json": True, "theme_revision": True})
+            self.assertEqual((Path(folder) / "original-wallpaper.jpg").read_bytes(), b"\x89PNG\r\n\x1a\nORIGINAL")
             self.assertEqual((Path(folder) / "original-config.json").read_bytes(),
                              b'{"columns":6}')
             self.assertEqual((Path(folder) / "original-theme_revision").read_bytes(),
@@ -66,11 +67,12 @@ class ProviderThemeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             t = ProviderTheme("192.168.0.160:5555", Path(folder))
             (Path(folder) / "provider-original-state.json").write_text(
-                '{"config.json":true,"theme_revision":false}')
+                '{"wallpaper.jpg":false,"config.json":true,"theme_revision":false}')
             (Path(folder) / "original-config.json").write_bytes(b'{"prior":true}')
             t.restore()
             write.assert_called_once_with("config.json", b'{"prior":true}')
-            delete.assert_called_once_with("theme_revision")
+            self.assertEqual([c.args[0] for c in delete.call_args_list],
+                             ["wallpaper.jpg", "theme_revision"])
             self.assertNotIn("wallpaper.jpg", str(write.call_args_list))
             self.assertNotIn("wallpapers/", str(delete.call_args_list))
 
@@ -79,13 +81,45 @@ class ProviderThemeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             t = ProviderTheme("192.168.0.160:5555", Path(folder))
             (Path(folder) / "provider-original-state.json").write_text(
-                '{"config.json":false,"theme_revision":false}')
+                '{"wallpaper.jpg":false,"config.json":false,"theme_revision":false}')
             t.apply(b'{"background_color":"#000000","wallpaper":false}')
             self.assertEqual(write.call_count, 2)
             self.assertEqual(write.call_args_list[0].args[0], "config.json")
             self.assertEqual(write.call_args_list[1].args[0], "theme_revision")
             self.assertNotIn("wallpaper.jpg", str(write.call_args_list))
             self.assertNotIn("wallpapers/", str(write.call_args_list))
+
+    @mock.patch.object(ProviderTheme, "write")
+    def test_wallpaper_theme_changes_only_three_allowlisted_files(self, write):
+        with tempfile.TemporaryDirectory() as folder:
+            t = ProviderTheme("192.168.0.160:5555", Path(folder))
+            (Path(folder) / "provider-original-state.json").write_text(
+                '{"wallpaper.jpg":false,"config.json":false,"theme_revision":false}')
+            config = b'{"wallpaper":true,"single_row":true}'
+            art = b"\\x89PNG\\r\\n\\x1a\\nART"
+            t.apply(config, wallpaper=art)
+            self.assertEqual([c.args[0] for c in write.call_args_list],
+                             ["wallpaper.jpg", "config.json", "theme_revision"])
+            self.assertEqual(write.call_args_list[0].args[1], art)
+            self.assertFalse(any("wallpapers/" in str(call) for call in write.call_args_list))
+
+    @mock.patch.object(ProviderTheme, "_adb")
+    def test_rejects_unrecognized_wallpaper_bytes_before_any_adb_write(self, adb):
+        with tempfile.TemporaryDirectory() as folder:
+            t = ProviderTheme("192.168.0.160:5555", Path(folder))
+            with self.assertRaisesRegex(ProviderError, "supported image format"):
+                t.write("wallpaper.jpg", b"GIF89aBAD")
+            adb.assert_not_called()
+
+    @mock.patch.object(ProviderTheme, "write")
+    def test_cannot_enable_wallpaper_without_supplied_asset(self, write):
+        with tempfile.TemporaryDirectory() as folder:
+            t = ProviderTheme("192.168.0.160:5555", Path(folder))
+            (Path(folder) / "provider-original-state.json").write_text(
+                '{"wallpaper.jpg":false,"config.json":false,"theme_revision":false}')
+            with self.assertRaisesRegex(ProviderError, "none was supplied"):
+                t.apply(b'{"wallpaper":true}')
+            write.assert_not_called()
 
     @mock.patch.object(ProviderTheme, "read")
     @mock.patch.object(ProviderTheme, "_adb")
