@@ -141,9 +141,11 @@ class SafetyTests(unittest.TestCase):
     def test_partial_official_theme_failure_attempts_restore(
         self, guard, disabled, backup, source, apply, restore
     ):
-        with self.assertRaisesRegex(cm.MaintenanceError, "previous theme restored"):
-            cm.theme()
-        restore.assert_called_once_with(Path("/tmp/official-theme.sh"), Path("/tmp/backup"))
+        with tempfile.TemporaryDirectory() as temp:
+            backup.return_value = Path(temp)
+            with self.assertRaisesRegex(cm.MaintenanceError, "previous theme restored"):
+                cm.theme()
+            restore.assert_called_once_with(Path("/tmp/official-theme.sh"), Path(temp))
 
     @mock.patch.object(cm, "ProviderTheme")
     @mock.patch.object(cm, "run")
@@ -197,7 +199,7 @@ class SafetyTests(unittest.TestCase):
                     (Path(temp) / "receipt.json").read_text()
                 )
         self.assertIn("CLEAN_YOUR_TV_THEME_OK", output)
-        self.assertIn("AMOLED v3", output)
+        self.assertIn("Verified AMOLED grid", output)
         provider.apply.assert_called_once_with(cm.PRESET.read_bytes(), wallpaper=None)
         self.assertIsNone(receipt["wallpaper_sha256"])
         self.assertEqual(receipt["home"], cm.HOME)
