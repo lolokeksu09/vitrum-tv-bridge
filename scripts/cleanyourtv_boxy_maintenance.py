@@ -147,6 +147,12 @@ def backup_theme():
     try:
         # A directory may not exist if no theme has previously been applied.
         existing = adb("shell", "ls", "-d", REMOTE, okay=True).strip()
+        provider = adb("exec-out", "content", "read", "--uri", THEME_URI,
+                       binary=True, okay=True)
+        try:
+            provider_config = json.loads(provider.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            provider_config = None
         if existing == REMOTE:
             dest = folder / "existing"
             dest.mkdir()
@@ -154,10 +160,20 @@ def backup_theme():
             files = list(dest.rglob("*"))
             if not files or not any(x.is_file() for x in files):
                 raise MaintenanceError("Theme directory exists but backup is empty")
+            # The provider can expose a theme the shell's file pull omitted.
+            configs = list(dest.rglob("config.json"))
+            if provider_config is not None and not configs:
+                raise MaintenanceError("Existing theme config not preserved by ADB pull")
         else:
-            # Verify it is absent, rather than merely inaccessible.
-            output = adb("shell", "test", "-e", REMOTE, okay=True)
-            if output.strip():
+            # Avoid replacing a valid existing overlay that shell cannot access.
+            if provider_config is not None:
+                raise MaintenanceError("Existing provider theme inaccessible for backup")
+            # Android/data may be inaccessible on OEM Android 11 builds:
+            # no arbitrary overwrites if the path cannot be confirmed absent.
+            status = adb("shell", "sh", "-c",
+                         "if [ -e '" + REMOTE + "' ]; then echo EXISTS; "
+                         "else echo ABSENT; fi", okay=True).strip()
+            if status != "ABSENT":
                 raise MaintenanceError("Cannot establish current theme state")
     except MaintenanceError:
         raise
