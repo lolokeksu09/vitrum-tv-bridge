@@ -109,7 +109,8 @@ class RemoteThemeTests(unittest.TestCase):
         fetch.side_effect = [
             {"sha": self.COMMIT},
             {"check_runs": [
-                {"name": name, "status": "completed", "conclusion": "success"}
+                {"name": name, "status": "completed", "conclusion": "success",
+                 "head_sha": self.COMMIT}
                 for name in remote.CHECK_RUNS
             ]},
             {"encoding": "base64", "content": "!!!!"},
