@@ -130,12 +130,58 @@ def verify_home_after_theme(*, pause=time.sleep, tries=8):
             break
         if home_resolver() != HOME:
             raise MaintenanceError("CleanYourTV is no longer default HOME")
-        if attempt % 2 == 0:
+        if attempt == 4:
+            # On some Android TV ROMs, KEYCODE_HOME alone cannot recover
+            # a just-restarted Home activity. Restart its explicit component
+            # ONCE without changing the resolver or disabling any package.
+            result = adb("shell", "am", "start", "-W", "--user", "0",
+                         "-n", HOME, okay=True)
+            if "Status: ok" not in result and "Warning: Activity not started" not in result:
+                # Keep probing; the final focus check must still be real.
+                pass
+        elif attempt % 2 == 0:
             adb("shell", "input", "keyevent", "3")
         pause(2)
     raise MaintenanceError(
         "CleanYourTV foreground HOME not confirmed after repeated checks"
     )
+
+
+def capture_theme_failure_state(folder: Path) -> str:
+    """Record transient foreground failure BEFORE rollback; report only package IDs.
+
+    Full dumps and screen stay in local Termux backup, not in GitHub issue.
+    No system settings or packages are altered.
+    """
+    import re as _re
+    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        raw_win = adb("shell", "dumpsys", "window", "windows",
+                      timeout=22, okay=True)
+        raw_activity = adb("shell", "dumpsys", "activity", "activities",
+                           timeout=22, okay=True)
+        pid = adb("shell", "pidof", PKG, timeout=12, okay=True).strip()
+        focus = next((line for line in raw_win.splitlines()
+                      if "mCurrentFocus=" in line), "")
+        resumed = next((line for line in raw_activity.splitlines()
+                        if "topResumedActivity" in line
+                        or "mResumedActivity" in line), "")
+        component = r"([A-Za-z_][A-Za-z0-9_.]*/[A-Za-z0-9_.$]+)"
+        match_focus = _re.search(component, focus)
+        match_resumed = _re.search(component, resumed)
+        foreground = match_focus.group(1) if match_focus else "unknown"
+        resumed_pkg = match_resumed.group(1) if match_resumed else "unknown"
+        (folder / "focus-failed-before-rollback.txt").write_text(
+            "foreground=" + foreground + "\nresumed=" + resumed_pkg +
+            "\nprocess=" + ("running" if _re.fullmatch(r"\d+(?:\s+\d+)*", pid) else "missing") +
+            "\n", encoding="utf-8")
+        shot = adb("exec-out", "screencap", "-p", timeout=25, binary=True)
+        if isinstance(shot, bytes) and shot:
+            (folder / "screen-failed-before-rollback.png").write_bytes(shot)
+        return ("foreground=" + foreground + ", resumed=" + resumed_pkg +
+                ", process=" + ("running" if _re.fullmatch(r"\d+(?:\s+\d+)*", pid) else "missing"))
+    except (MaintenanceError, OSError, ValueError):
+        return "foreground diagnostics unavailable"
 
 
 def probe():
@@ -351,7 +397,11 @@ def theme():
         if json.loads(current.decode("utf-8")) != expected:
             raise MaintenanceError("ThemeProvider readback did not match requested preset")
         adb("shell", "input", "keyevent", "3")
-        verify_home_after_theme()
+        try:
+            verify_home_after_theme()
+        except MaintenanceError as failure:
+            details = capture_theme_failure_state(folder)
+            raise MaintenanceError(str(failure) + "; " + details) from failure
         if disabled_packages() != before:
             raise MaintenanceError("Unexpected change in disabled packages")
         after = adb("exec-out", "screencap", "-p", binary=True)
