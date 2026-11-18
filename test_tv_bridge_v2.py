@@ -370,5 +370,47 @@ class MonolithVerifiedInstall(unittest.TestCase):
         execute.assert_not_called()
 
 
+
+class CleanYourTVMaintenanceContract(unittest.TestCase):
+    DEVICE = "192.168.0.160:5555"
+
+    def task(self, op, args=None):
+        return {"number": 47, "op": op, "args": args or {}}
+
+    def test_schema_rejects_shell_and_arbitrary_maintenance_parameters(self):
+        for op in ("cleanyourtv_probe", "cleanyourtv_apply_theme",
+                   "cleanyourtv_reboot_check"):
+            self.assertIsNotNone(bridge.parse_issue(issue(op), now=NOW))
+            self.assertIsNone(bridge.parse_issue(
+                issue(op, {"command": "pm disable-user com.android.systemui"}),
+                now=NOW))
+        self.assertIsNone(bridge.parse_issue(issue(
+            "system_shell", {"command": "reboot"}), now=NOW))
+
+    def test_maintenance_and_reboot_require_distinct_local_opt_in(self):
+        for op in ("cleanyourtv_apply_theme", "cleanyourtv_reboot_check"):
+            with self.assertRaises(bridge.ActionDenied):
+                bridge.run_action(self.DEVICE, self.task(op),
+                                  bridge.Permissions(control=True, screenshot=True))
+        with self.assertRaises(bridge.ActionDenied):
+            bridge.run_action(self.DEVICE,
+                              self.task("cleanyourtv_reboot_check"),
+                              bridge.Permissions(maintenance=True))
+
+    @mock.patch.object(bridge, "invoke_cleanyourtv_maintenance")
+    def test_ops_dispatch_only_fixed_internal_actions(self, invoke):
+        invoke.return_value = "VERIFIED"
+        permissions = bridge.Permissions(maintenance=True, reboot=True)
+        expected = (
+            ("cleanyourtv_probe", "probe"),
+            ("cleanyourtv_apply_theme", "theme"),
+            ("cleanyourtv_reboot_check", "reboot"),
+        )
+        for op, internal in expected:
+            output = bridge.run_action(self.DEVICE, self.task(op), permissions)
+            self.assertEqual(output, "VERIFIED")
+            invoke.assert_called_with(self.DEVICE, internal)
+
+
 if __name__ == "__main__":
     unittest.main()

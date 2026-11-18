@@ -36,7 +36,9 @@ READ_OPS = frozenset((*base.OPERATIONS, "app_list", "app_info", "vitrum_memory")
 CONTROL_OPS = frozenset(("key", "launch_vitrum", "stop_vitrum", "launch_app"))
 SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "install_vitrum_ci",
                           "install_monolith_ci", "ui_sweep"))
-ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS
+MAINTENANCE_OPS = frozenset(("cleanyourtv_probe", "cleanyourtv_apply_theme",
+                             "cleanyourtv_reboot_check"))
+ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS | MAINTENANCE_OPS
 PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", re.ASCII)
 APK = re.compile(r"(?:Vitrum-TV[A-Za-z0-9._-]*|tv-debug)\.apk", re.ASCII)
 SHA256 = re.compile(r"[a-f0-9]{64}", re.ASCII)
@@ -77,12 +79,14 @@ class Permissions:
     control: bool = False
     screenshot: bool = False
     install: bool = False
+    maintenance: bool = False
+    reboot: bool = False
 
 
 def validate_args(op, args):
     if not isinstance(args, dict):
         return False
-    empty = (READ_OPS - {"app_info"}) | {"launch_vitrum", "stop_vitrum", "screenshot", "ui_sweep"}
+    empty = (READ_OPS - {"app_info"}) | {"launch_vitrum", "stop_vitrum", "screenshot", "ui_sweep"} | MAINTENANCE_OPS
     if op in empty:
         return args == {}
     if op == "key":
@@ -334,6 +338,26 @@ def install_monolith_from_ci(device, args):
         return "Installed verified MONOLITH TV preview from CI run " + str(run_id)
 
 
+def invoke_cleanyourtv_maintenance(device, action):
+    """Opt-in fixed actions only: no remote arbitrary shell and no package disable."""
+    if device != "192.168.0.160:5555" or action not in {"probe", "theme", "reboot"}:
+        raise BridgeError("Unexpected BOXY target or maintenance operation")
+    script = Path(__file__).resolve().parent / "scripts/cleanyourtv_boxy_maintenance.py"
+    if not script.is_file() or script.is_symlink():
+        raise BridgeError("Pinned CleanYourTV maintenance implementation unavailable")
+    command = [sys.executable, str(script), action]
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True,
+                              errors="replace", timeout=960, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BridgeError("CleanYourTV maintenance command unavailable or timed out") from exc
+    if proc.returncode:
+        # Do not expose full environment, settings or ADB output to GitHub.
+        reason = proc.stderr.strip().splitlines()
+        raise BridgeError((reason[-1] if reason else "Maintenance operation failed")[:420])
+    return (proc.stdout.strip() or "Maintenance finished without output")[:2500]
+
+
 def run_action(device, request, permissions, downloads=None):
     op, args = request["op"], request["args"]
     if op in base.OPERATIONS:
@@ -358,6 +382,16 @@ def run_action(device, request, permissions, downloads=None):
                 if "TOTAL PSS:" in line or "TOTAL SWAP PSS:" in line
                 or re.match(r"^\s*TOTAL\s+\d+", line)]
         return "\n".join(rows[:12]) or "Memory details unavailable"
+
+    if op in MAINTENANCE_OPS:
+        if not permissions.maintenance:
+            raise ActionDenied("Requires local --allow-maintenance flag")
+        if op == "cleanyourtv_reboot_check" and not permissions.reboot:
+            raise ActionDenied("Reboot separately requires local --allow-reboot flag")
+        action = {"cleanyourtv_probe": "probe",
+                  "cleanyourtv_apply_theme": "theme",
+                  "cleanyourtv_reboot_check": "reboot"}[op]
+        return invoke_cleanyourtv_maintenance(device, action)
 
     if op in CONTROL_OPS and not permissions.control:
         raise ActionDenied("Requires local --allow-control flag")
@@ -455,9 +489,16 @@ def main():
                         help="Enable screenshot uploads into private Git history")
     parser.add_argument("--allow-installs", action="store_true",
                         help="Enable SHA-256 pinned local APK installation")
+    parser.add_argument("--allow-maintenance", action="store_true",
+                        help="Opt in to fixed CleanYourTV audit and official theme actions")
+    parser.add_argument("--allow-reboot", action="store_true",
+                        help="Separately allow verified CleanYourTV restart test")
     args = parser.parse_args()
-    permissions = Permissions(args.allow_control, args.allow_screenshots,
-                              args.allow_installs)
+    permissions = Permissions(control=args.allow_control,
+                              screenshot=args.allow_screenshots,
+                              install=args.allow_installs,
+                              maintenance=args.allow_maintenance,
+                              reboot=args.allow_reboot)
     try:
         with single_agent_lock():
             base.verify_access(args.device)

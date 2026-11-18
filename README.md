@@ -71,6 +71,21 @@ Allowed key names: `UP`, `DOWN`, `LEFT`, `RIGHT`, `OK`, `BACK`, `HOME`, `ENTER`,
 
 V1 owner-authored read-only requests remain compatible with v2.
 
+## BOXY CleanYourTV maintenance (separate opt-in)
+
+The private bridge also supports three **fixed** maintenance operations:
+`cleanyourtv_probe` (read BOXY status),
+`cleanyourtv_apply_theme` (local backup + official pinned upstream `tools/theme.sh`),
+and `cleanyourtv_reboot_check` (guarded Home/reboot verification).
+
+These operations require `--allow-maintenance` when starting the agent.
+The reboot additionally requires `--allow-reboot`. The normal
+`--allow-control` and `--allow-screenshots` permissions do not enable either.
+
+The maintenance operation does **not** grant arbitrary remote ADB shell,
+package disable/uninstall, root, network DNS changes, or firmware flashing.
+See [BOXY maintenance instructions](docs/CLEANYOURTV-BOXY-MAINTENANCE.md).
+
 ## Trust boundary and limitations
 
 - **No arbitrary shell**, root, deletion, firmware flashing, accessibility services, remote arbitrary file access, VPN credential retrieval, SSH server, port forwarding or inbound Internet access.
