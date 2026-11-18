@@ -10,6 +10,8 @@ rebuilding an APK.
   the red-arc Minimal OLED v2 image. The old wallpaper file is **not deleted**.
 - Six columns instead of four; tile width automatically shrinks in the official
   CleanYourTV engine.
+- Greeting line removed to reduce header clutter; clock and date remain visible.
+  Wi-Fi, Settings, existing app grid and navigation are preserved.
 - The existing four dock favorites remain first, in verified order: YouTube,
   VK Видео, v2rayNG, BrowseHere. `fill_dock=true` fills the remaining two
   slots in the top row from the app list.
