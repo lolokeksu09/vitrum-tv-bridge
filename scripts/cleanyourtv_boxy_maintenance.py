@@ -128,6 +128,7 @@ def probe():
         "HOME focused: " + str(home_focus()),
         "Display: " + resolution + " / " + density,
         "Disabled packages: " + str(len(disabled)),
+        "Theme directory access: " + remote_directory_state(),
         "Unknown OEM candidates (READ ONLY):",
         *vendor_notes,
         "No package, settings or firmware changes.",
