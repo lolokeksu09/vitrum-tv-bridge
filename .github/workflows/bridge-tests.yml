@@ -8,7 +8,9 @@ on:
       - 'test_tv_bridge.py'
       - 'test_tv_bridge_v2.py'
       - 'scripts/cleanyourtv_boxy_maintenance.py'
+      - 'scripts/cleanyourtv_provider_files.py'
       - 'tests/test_cleanyourtv_maintenance.py'
+      - 'tests/test_cleanyourtv_provider_theme.py'
       - '.github/workflows/bridge-tests.yml'
   pull_request:
   workflow_dispatch:
@@ -26,5 +28,5 @@ jobs:
           python-version: '3.12'
       - name: Test approved requests and rejected inputs
         run: |
-          python -m py_compile scripts/cleanyourtv_boxy_maintenance.py tv_bridge_v2.py
-          python -m unittest -v test_tv_bridge.py test_tv_bridge_v2.py tests/test_cleanyourtv_maintenance.py
+          python -m py_compile scripts/cleanyourtv_boxy_maintenance.py scripts/cleanyourtv_provider_files.py tv_bridge_v2.py
+          python -m unittest -v test_tv_bridge.py test_tv_bridge_v2.py tests/test_cleanyourtv_maintenance.py tests/test_cleanyourtv_provider_theme.py
