@@ -99,15 +99,20 @@ def check_preset():
         cfg = json.loads(raw)
     except (OSError, ValueError) as exc:
         raise MaintenanceError("Official-format BOXY preset missing or invalid") from exc
-    if (cfg.get("dock_apps") != DOCK or cfg.get("columns") != 4
-            or cfg.get("rows_below_dock") != 1
+    if (cfg.get("dock_apps") != DOCK or cfg.get("columns") != 6
+            or cfg.get("rows_below_dock") != 2
             or cfg.get("background_color") != "#000000"
-            or cfg.get("wallpaper") is not True
-            or cfg.get("single_row") is not True
+            or cfg.get("wallpaper") is not False
+            or cfg.get("single_row") is not False
+            or cfg.get("dock_row") is not True
+            or cfg.get("dock_band") is not False
             or cfg.get("dock_title") is not False
+            or cfg.get("glass_style") != "rim"
+            or cfg.get("app_glow") is not False
             or cfg.get("ambient_glow") is not False
+            or cfg.get("clock_glow") is not False
             or cfg.get("sky_intensity") != 0):
-        raise MaintenanceError("Unexpected BOXY OLED preset; refusing to apply")
+        raise MaintenanceError("Unexpected BOXY AMOLED v3 preset; refusing to apply")
     return cfg, hashlib.sha256(raw).hexdigest()
 
 
@@ -443,11 +448,10 @@ def restore_theme(script: Path, folder: Path):
 def theme():
     device_guard()
     expected, digest = check_preset()
-    wallpaper = make_wallpaper()
-    if (not wallpaper.startswith(b"\x89PNG\r\n\x1a\n")
-            or len(wallpaper) > 8_000_000):
-        raise MaintenanceError("Generated wallpaper invalid; no changes")
-    wallpaper_sha256 = hashlib.sha256(wallpaper).hexdigest()
+    # AMOLED v3 draws only the launcher base #000000. Do not generate, write,
+    # remove or replace the user's existing wallpaper.jpg backup/asset.
+    wallpaper = None
+    wallpaper_sha256 = None
     before = disabled_packages()
     folder = backup_theme()
     mode_path = folder / "mode.txt"
@@ -473,7 +477,9 @@ def theme():
             current = provider.read("config.json")
             if current != PRESET.read_bytes():
                 raise MaintenanceError("Provider-only config readback differs")
-            if hashlib.sha256(provider.read("wallpaper.jpg") or b"").hexdigest() != wallpaper_sha256:
+            if wallpaper is not None and (
+                    hashlib.sha256(provider.read("wallpaper.jpg") or b"").hexdigest()
+                    != wallpaper_sha256):
                 raise MaintenanceError("Provider-only wallpaper readback differs")
         else:
             theme_command(script, str(PRESET.parent))
@@ -514,7 +520,7 @@ def theme():
     RECEIPT.chmod(0o600)
     return ("CLEAN_YOUR_TV_THEME_OK\n"
             "Pinned official theme mechanism applied; mode: " + mode + ".\n"
-            "OLED single-row dock and wallpaper verified by ThemeProvider readback.\n"
+            "AMOLED v3 six-column grid and no-wallpaper config verified by ThemeProvider readback.\n"
             "HOME focused; system package states unchanged.\n"
             "Private backup: " + str(folder) + "\n"
             "Reboot not yet performed; use separate reboot_check.")
