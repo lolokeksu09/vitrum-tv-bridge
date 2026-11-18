@@ -143,7 +143,7 @@ def remote_directory_state():
     command = ("LC_ALL=C ls -ld '" + REMOTE +
                "' 2>&1; printf '\\nCYT_LS_EXIT:%s\\n' \"$?\"")
     output = adb("shell", command, okay=True).strip()
-    match = re.search(r"CYT_LS_EXIT:(\\d+)\\b", output)
+    match = re.search(r"CYT_LS_EXIT:(\d+)\b", output)
     if match is None:
         return "unknown"
     if match.group(1) == "0":
