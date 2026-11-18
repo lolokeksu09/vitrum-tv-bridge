@@ -12,7 +12,11 @@ class SafetyTests(unittest.TestCase):
         config, digest = cm.check_preset()
         self.assertEqual(config["dock_apps"], cm.DOCK)
         self.assertEqual(config["background_color"], "#000000")
-        self.assertEqual(config["rows_below_dock"], 0)
+        self.assertEqual(config["rows_below_dock"], 1)
+        self.assertTrue(config["single_row"])
+        self.assertFalse(config["dock_title"])
+        self.assertFalse(config["ambient_glow"])
+        self.assertTrue(config["wallpaper"])
         self.assertEqual(len(digest), 64)
 
     @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
