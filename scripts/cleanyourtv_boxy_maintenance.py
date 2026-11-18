@@ -191,6 +191,8 @@ def backup_theme():
             if provider_config is not None:
                 raise MaintenanceError("Existing provider theme inaccessible for backup")
         else:
+            if provider_config is not None:
+                raise MaintenanceError("Existing provider theme inaccessible for backup")
             raise MaintenanceError(
                 "Theme directory access unresolved (Android scoped storage or "
                 "ADB shell denied); no changes. Inspect app-specific theme "
