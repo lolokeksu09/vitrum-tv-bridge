@@ -86,6 +86,35 @@ class SafetyTests(unittest.TestCase):
                     cm.backup_theme()
         run.assert_not_called()
 
+    @mock.patch.object(cm, "adb")
+    def test_theme_directory_probe_reports_definite_absence(self, adb):
+        adb.return_value = (
+            "ls: /sdcard/Android/data/com.gathin.tvhome/files: "
+            "No such file or directory\\nCYT_LS_EXIT:1"
+        )
+        self.assertEqual(cm.remote_directory_state(), "absent")
+        self.assertEqual(adb.call_args.args[0], "shell")
+        self.assertEqual(len(adb.call_args.args), 2)
+        self.assertIn("ls -ld", adb.call_args.args[1])
+        self.assertIn("CYT_LS_EXIT", adb.call_args.args[1])
+
+    @mock.patch.object(cm, "adb")
+    def test_theme_directory_probe_refuses_scoped_storage_permission_denied(self, adb):
+        adb.return_value = (
+            "ls: /sdcard/Android/data/com.gathin.tvhome/files: "
+            "Permission denied\\nCYT_LS_EXIT:1"
+        )
+        self.assertEqual(cm.remote_directory_state(), "unknown")
+
+    @mock.patch.object(cm, "adb")
+    def test_theme_directory_probe_accepts_listing_only_on_exit_zero(self, adb):
+        adb.return_value = (
+            "drwxrwx--- 3 u0_a123 ext_data_rw 4096 ...\\nCYT_LS_EXIT:0"
+        )
+        self.assertEqual(cm.remote_directory_state(), "exists")
+        adb.return_value = "CYT_LS_EXIT:1"
+        self.assertEqual(cm.remote_directory_state(), "unknown")
+
     @mock.patch.object(cm, "run")
     def test_only_exact_fixed_cli_operations_are_allowed(self, run):
         with mock.patch.object(cm.sys, "argv", ["maintenance", "shell", "pm disable-user"]):
