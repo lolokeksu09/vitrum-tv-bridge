@@ -16,5 +16,11 @@
   "app_glow": true,
   "ambient_glow": true,
   "focus_overshoot": false,
-  "advanced_effects": false
+  "advanced_effects": false,
+  "dock_apps": [
+    "com.google.android.youtube.tv",
+    "com.vk.tv",
+    "com.v2ray.ang",
+    "com.tcl.browser"
+  ]
 }
