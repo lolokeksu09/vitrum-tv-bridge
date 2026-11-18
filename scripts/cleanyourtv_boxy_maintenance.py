@@ -199,6 +199,71 @@ def capture_theme_failure_state(folder: Path) -> str:
         return "foreground diagnostics unavailable"
 
 
+CEC_GLOBAL_KEYS = (
+    "hdmi_control_enabled",
+    "hdmi_control_auto_device_off_enabled",
+    "hdmi_control_auto_wakeup_enabled",
+    "hdmi_control_one_touch_play_enabled",
+    "hdmi_control_volume_control_enabled",
+    "hdmi_control_power_control_mode",
+)
+
+
+def cec_power_probe():
+    """Read only: confirm whether BOXY/TV power are coupled by HDMI-CEC.
+
+    Manufacturer HDMI-CEC implementations vary. Do not infer that a missing
+    Android global setting means a feature is on or off; never write sysfs.
+    """
+    lines = ["HDMI-CEC power diagnostics (READ ONLY):"]
+    for key in CEC_GLOBAL_KEYS:
+        raw = adb("shell", "settings", "get", "global", key,
+                  okay=True, timeout=14).strip()
+        value = raw if raw in ("0", "1", "null", "to_tv", "none",
+                               "to_tv_and_audio_system", "broadcast") else "unknown"
+        lines.append("  " + key + "=" + value)
+
+    device_type = adb("shell", "getprop", "ro.hdmi.device_type",
+                      okay=True).strip()
+    lines.append("  ro.hdmi.device_type=" +
+                 (device_type if device_type in ("0", "4", "5") else "unknown"))
+
+    # Amlogic's cec_config mask is OEM-specific; bit 0x04 is often the
+    # "one-key standby" option. Observing it does NOT authorize a sysfs write.
+    cec_cfg = adb("shell", "cat", "/sys/class/amhdmitx/amhdmitx0/cec_config",
+                  okay=True, timeout=14).strip()
+    raw = cec_cfg.splitlines()[0] if cec_cfg else ""
+    if re.fullmatch(r"(?:0[xX])?[0-9a-fA-F]{1,4}", raw):
+        value = int(raw, 16)
+        lines.append("  amlogic_cec_config=0x" + format(value, "x"))
+        lines.append("  amlogic_standby_bit_0x04=" +
+                     ("set" if value & 0x04 else "clear") +
+                     " (firmware-dependent interpretation)")
+    else:
+        lines.append("  amlogic_cec_config=unavailable")
+
+    # HDMI control service can be absent or vendor replaced; only selected
+    # coarse flags are surfaced. No neighbor TV identification/EDID/addresses.
+    report = adb("shell", "dumpsys", "hdmi_control", okay=True, timeout=22)
+    interesting = ("mHdmiControlEnabled", "mAutoDeviceOff", "mAutoWakeup",
+                   "mPowerControlMode", "mIsActiveSource", "mStandbyMessageReceived")
+    matches = []
+    for line in report.splitlines():
+        stripped = line.strip()
+        for tag in interesting:
+            if tag in stripped:
+                match = re.search(r"\b" + re.escape(tag) +
+                                  r"\s*[:=]\s*([A-Za-z0-9_.-]+)", stripped)
+                if match:
+                    matches.append("  " + tag + "=" + match.group(1)[:30])
+                break
+    lines.extend(matches[:12])
+    if not matches:
+        lines.append("  hdmi_control_service_details=unavailable")
+    lines.append("  NOTE: No CEC or power setting was changed.")
+    return "\n".join(lines)
+
+
 def probe():
     state = device_guard()
     disabled = disabled_packages()
@@ -225,6 +290,7 @@ def probe():
         "Theme directory access: " + remote_directory_state(),
         "Unknown OEM candidates (READ ONLY):",
         *vendor_notes,
+        cec_power_probe(),
         "No package, settings or firmware changes.",
     ])
 
