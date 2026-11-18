@@ -1,58 +1,60 @@
-# CleanYourTV BOXY — Minimal OLED v2
+# CleanYourTV BOXY — AMOLED v3
 
-This preset implements the user's approved minimal launcher concept **on the
-existing CleanYourTV 3.5.0 APK**. It does not produce a new launcher or claim
-pixel-perfect identity with the design render.
+Implemented for the existing `com.gathin.tvhome` CleanYourTV 3.5.0 on
+SkyworthDigital HP44H (Android TV 11). This replaces Minimal OLED v2 without
+rebuilding an APK.
 
-## Visible design
+## User-facing design
 
-- True-black base with a subtle procedural red arc. The art is generated locally
-  by `scripts/boxy_minimal_wallpaper.py` (pure Python stdlib, 1600×900).
-- Large greeting, live clock and date remain at upper left. Wi-Fi and Settings
-  keep visible labels at upper right.
-- Four actual pinned apps in exact confirmed order:
-  YouTube, VK Видео, v2rayNG, BrowseHere.
-- One frosted-glass dock, no redundant full-sized app name above it.
-- No permanently visible lower app rows; **all other installed apps remain
-  reachable by horizontal D-pad scrolling in `single_row` mode**.
-- `rows_below_dock=1` supplies vertical spacing that raises the one-row dock
-  toward the center; it does not create a second row when `single_row=true`.
-- `app_glow=true` retains a focused-app accent. `ambient_glow=false` and
-  `sky_intensity=0` prevent the heavy burgundy full-screen wash.
-- `wallpaper=true` enables only the launcher-owned static background
-  `wallpaper.jpg`. No system wallpaper or `wallpapers/` collection changes.
+- Actual pure black `#000000` background. Wallpaper playback OFF, including
+  the red-arc Minimal OLED v2 image. The old wallpaper file is **not deleted**.
+- Six columns instead of four; tile width automatically shrinks in the official
+  CleanYourTV engine.
+- The existing four dock favorites remain first, in verified order: YouTube,
+  VK Видео, v2rayNG, BrowseHere. `fill_dock=true` fills the remaining two
+  slots in the top row from the app list.
+- `single_row=false` restores the normal vertical grid below the dock.
+  `rows_below_dock=2` requests **two additional visible rows**. If the device
+  contains more apps than fit, D-pad Down scrolls to the remainder.
+- No hero title, no glass-band border behind the entire dock and no
+  red app-colour focus glow, ambient glow, sky tint or clock glow.
+- `glass_style=rim` deliberately retains a **thin neutral focus outline** so
+  the user can navigate by remote. The official CleanYourTV 3.5.0 theme does not
+  offer a truly borderless focus state; removing this last visual cue would
+  require changing/building launcher source and testing keyboard navigation.
+- Wi-Fi and Settings remain available on the top bar.
 
-### Runtime differences from mockup
+## Technical implementation
 
-The mockup is not an APK screenshot. Actual font rendering, app banner artwork,
-focus ring, tile dimensions and top-bar controls are rendered by the installed
-CleanYourTV 3.5.0 engine. Do not substitute mock thumbnails or fake content.
+`presets/cleanyourtv-boxy/config.json` is the source of truth.
 
-## Installation
+The private bridge's fixed `cleanyourtv_apply_theme` operation reads this file
+on the owner's phone. Unlike Minimal OLED v2, **no wallpaper image is
+generated, uploaded, written or deleted**. The existing `wallpaper.jpg` file
+stays in place but is not displayed because `wallpaper=false`.
 
-The existing private BOXY agent can run fixed `cleanyourtv_apply_theme`.
-From Termux the equivalent local one-shot command after pulling the current
-repository is:
+On Android TV 11 the official exported CleanYourTV ThemeProvider is used for
+the two changed configuration files (`config.json` and `theme_revision`).
+The agent saves previous versions of all three allowlisted theme files,
+including the wallpaper, for reliable rollback. It verifies the readback,
+correct system HOME and unchanged disabled-package count/list. Backup:
+`~/cleanyourtv-backups/theme-<UTC timestamp>/`.
 
-```bash
-python ~/vitrum-tv-bridge/scripts/cleanyourtv_boxy_maintenance.py theme
-```
+The change does **not** touch system apps, the stock launcher state, Wi-Fi,
+HDMI-CEC, VPN, input key bindings or firmware.
 
-The script validates the **exact** BOXY identity, system Home and installed dock
-packages. Using the official exported ThemeProvider it backs up the current
-`wallpaper.jpg`, `config.json` and `theme_revision` before overwriting only
-those three launcher-owned paths. Old `wallpapers/` collections remain unchanged.
-A copy of the previous disabled-package list and a pre-change screenshot is
-retained in `~/cleanyourtv-backups/theme-<UTC timestamp>/`.
+## Real-TV acceptance criteria
 
-The script verifies actual provider readback, running Home, disabled-package
-state and a new screen capture. On errors it attempts byte-exact rollback for
-those three files and restarts the previous launcher configuration. No root,
-generic remote shell, theme reset, system-package disable, DNS write or firmware
-operation is included.
+1. Fresh 1920×1080 screenshot: black background; no red curves, large title or
+   red selection glow; six narrower tiles across the first row, with visible
+   grid rows beneath.
+2. D-pad focus is visible but subdued; check all four directions including
+   reaching a tile below the dock.
+3. Check a non-favorite app launches via OK, then Home returns to CleanYourTV.
+4. Check Wi-Fi and Settings buttons remain navigable.
+5. Confirm default HOME and prior system package state with the local bridge.
+6. Only call the update installed after a successful live TV screenshot, not
+   after GitHub Actions alone. A reboot test is a separate action.
 
-**On-device acceptance:** compare a fresh 1920×1080 capture; confirm black
-background/red arc, four dock apps, no hero label or second visible grid;
-test Left/Right/OK/Home, open other apps by scrolling, and access Wi-Fi/Settings.
-A successful write or CI test alone is not a visual or remote-control proof.
-Reboot is a separate, optional validated action, never assumed completed.
+Official reference:
+[Gathin23/cleanyourtv themes/README.md](https://github.com/Gathin23/cleanyourtv/blob/v3.5.0/themes/README.md).

@@ -8,15 +8,21 @@ from scripts import cleanyourtv_boxy_maintenance as cm
 
 
 class SafetyTests(unittest.TestCase):
-    def test_preset_is_exact_expected_dock_and_opaque_black(self):
+    def test_preset_is_amoled_v3_compact_grid_without_glow(self):
         config, digest = cm.check_preset()
         self.assertEqual(config["dock_apps"], cm.DOCK)
         self.assertEqual(config["background_color"], "#000000")
-        self.assertEqual(config["rows_below_dock"], 1)
-        self.assertTrue(config["single_row"])
+        self.assertEqual(config["columns"], 6)
+        self.assertEqual(config["rows_below_dock"], 2)
+        self.assertFalse(config["single_row"])
+        self.assertTrue(config["dock_row"])
         self.assertFalse(config["dock_title"])
+        self.assertFalse(config["dock_band"])
         self.assertFalse(config["ambient_glow"])
-        self.assertTrue(config["wallpaper"])
+        self.assertFalse(config["app_glow"])
+        self.assertFalse(config["clock_glow"])
+        self.assertEqual(config["glass_style"], "rim")
+        self.assertFalse(config["wallpaper"])
         self.assertEqual(len(digest), 64)
 
     @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
@@ -36,6 +42,17 @@ class SafetyTests(unittest.TestCase):
             cm.device_guard()
         home.assert_not_called()
         self.assertFalse(any("disable-user" in str(c) for c in adb.call_args_list))
+
+    @mock.patch.object(cm, "make_wallpaper", side_effect=AssertionError("never generate decorative wallpaper"))
+    @mock.patch.object(cm, "device_guard")
+    @mock.patch.object(cm, "backup_theme", side_effect=cm.MaintenanceError("backup refused"))
+    @mock.patch.object(cm, "disabled_packages", return_value=[])
+    def test_amoled_v3_never_generates_wallpaper_even_before_backup_failure(
+        self, disabled, backup, device_guard, generator
+    ):
+        with self.assertRaisesRegex(cm.MaintenanceError, "backup refused"):
+            cm.theme()
+        generator.assert_not_called()
 
     @mock.patch.object(cm, "device_guard")
     @mock.patch.object(cm, "adb")
@@ -88,6 +105,45 @@ class SafetyTests(unittest.TestCase):
                 self.assertEqual((folder / "mode.txt").read_text(), "provider-only")
         provider.return_value.backup_files.assert_called_once()
         run.assert_not_called()
+
+    @mock.patch.object(cm, "verify_home_after_theme")
+    @mock.patch.object(cm, "restart_home_simple")
+    @mock.patch.object(cm, "ensure_safe_adb_restart")
+    @mock.patch.object(cm, "ProviderTheme")
+    @mock.patch.object(cm, "backup_theme")
+    @mock.patch.object(cm, "adb")
+    @mock.patch.object(cm, "disabled_packages", return_value=["package:stock"])
+    @mock.patch.object(cm, "device_guard")
+    def test_amoled_v3_applies_config_only_without_modifying_old_wallpaper(
+        self, guard, disabled, adb, backup, provider_cls, safe, restart, verify
+    ):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "theme"
+            folder.mkdir()
+            (folder / "mode.txt").write_text("provider-only")
+            backup.return_value = folder
+            provider = provider_cls.return_value
+            provider.read.side_effect = lambda name: (
+                cm.PRESET.read_bytes() if name == "config.json"
+                else (_ for _ in ()).throw(AssertionError("Unexpected wallpaper read"))
+            )
+            adb.side_effect = lambda *args, **kwargs: (
+                b"\x89PNG\r\n\x1a\n" + b"image"
+                if args[:3] == ("exec-out", "screencap", "-p") else ""
+            )
+            with mock.patch.object(cm, "RECEIPT", Path(temp) / "receipt.json"):
+                output = cm.theme()
+                receipt = __import__("json").loads(
+                    (Path(temp) / "receipt.json").read_text()
+                )
+        self.assertIn("CLEAN_YOUR_TV_THEME_OK", output)
+        self.assertIn("AMOLED v3", output)
+        provider.apply.assert_called_once_with(cm.PRESET.read_bytes(), wallpaper=None)
+        self.assertIsNone(receipt["wallpaper_sha256"])
+        self.assertEqual(receipt["home"], cm.HOME)
+        safe.assert_called_once()
+        restart.assert_called_once()
+        verify.assert_called_once()
 
     @mock.patch.object(cm, "restart_home_simple")
     @mock.patch.object(cm, "ensure_safe_adb_restart")
