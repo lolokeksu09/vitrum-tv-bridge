@@ -105,9 +105,24 @@ def check_preset():
 
 
 def home_focus():
-    raw = adb("shell", "dumpsys", "window", "windows", timeout=30)
-    return any(PKG + "/" in line for line in raw.splitlines()
-               if "mCurrentFocus=" in line)
+    """Verify Home using the same WindowManager query as bridge focus_status.
+
+    On BOXY Android TV 11 `dumpsys window windows` omits mCurrentFocus,
+    while `dumpsys window` reports it. When the current window is absent,
+    require both WindowManager's focused app AND ActivityManager's resumed
+    activity to agree; never accept a different foreground window.
+    """
+    raw = adb("shell", "dumpsys", "window", timeout=30)
+    current = next((x for x in raw.splitlines() if "mCurrentFocus=" in x), None)
+    if current and "null" not in current.split("mCurrentFocus=", 1)[1].strip().lower():
+        return PKG + "/" in current
+    focused = next((x for x in raw.splitlines() if "mFocusedApp=" in x), "")
+    if PKG + "/" not in focused:
+        return False
+    activity = adb("shell", "dumpsys", "activity", "activities", timeout=30)
+    resumed = next((x for x in activity.splitlines()
+                    if "topResumedActivity" in x or "mResumedActivity" in x), "")
+    return PKG + "/" in resumed
 
 
 def verify_home_after_theme(*, pause=time.sleep, tries=8):
@@ -156,7 +171,7 @@ def capture_theme_failure_state(folder: Path) -> str:
     import re as _re
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
-        raw_win = adb("shell", "dumpsys", "window", "windows",
+        raw_win = adb("shell", "dumpsys", "window",
                       timeout=22, okay=True)
         raw_activity = adb("shell", "dumpsys", "activity", "activities",
                            timeout=22, okay=True)
