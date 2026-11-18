@@ -18,6 +18,11 @@ import subprocess
 import sys
 import time
 
+if __package__:
+    from .cleanyourtv_provider_files import ProviderTheme, ProviderError
+else:
+    from cleanyourtv_provider_files import ProviderTheme, ProviderError
+
 MODEL = "4K Android TV Box"
 TV = "192.168.0.160:5555"
 PKG = "com.gathin.tvhome"
@@ -165,41 +170,28 @@ def backup_theme():
     (folder / "home-before.txt").write_text(home_resolver() + "\n", encoding="utf-8")
     (folder / "screen-before.png").write_bytes(
         adb("exec-out", "screencap", "-p", binary=True))
-    try:
-        # A directory may not exist if no theme has previously been applied.
-        existing = remote_directory_state()
-        provider = adb("exec-out", "content", "read", "--uri", THEME_URI,
-                       binary=True, okay=True)
+    # Scoped storage prevents listing Android/data on Android 11.
+    # The official ThemeProvider can back up config/revision without touching
+    # an inaccessible wallpaper collection.
+    state = remote_directory_state()
+    if state == "exists":
+        dest = folder / "existing"
+        dest.mkdir()
+        run(["adb", "-s", TV, "pull", REMOTE, str(dest)], timeout=80)
+        files = list(dest.rglob("*"))
+        if not any(x.is_file() for x in files):
+            raise MaintenanceError("Existing theme directory backup is empty")
+        (folder / "mode.txt").write_text("full", encoding="utf-8")
+    else:
+        provider = ProviderTheme(TV, folder)
         try:
-            provider_config = json.loads(provider.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError):
-            provider_config = None
-        if existing == "exists":
-            dest = folder / "existing"
-            dest.mkdir()
-            run(["adb", "-s", TV, "pull", REMOTE, str(dest)], timeout=80)
-            files = list(dest.rglob("*"))
-            if not files or not any(x.is_file() for x in files):
-                raise MaintenanceError("Theme directory exists but backup is empty")
-            # The provider can expose a theme the shell's file pull omitted.
-            configs = list(dest.rglob("config.json"))
-            if provider_config is not None and not configs:
-                raise MaintenanceError("Existing theme config not preserved by ADB pull")
-        elif existing == "absent":
-            # Even if the shell sees no directory, a live ThemeProvider config
-            # means app data may be inaccessible; never overwrite it.
-            if provider_config is not None:
-                raise MaintenanceError("Existing provider theme inaccessible for backup")
-        else:
-            if provider_config is not None:
-                raise MaintenanceError("Existing provider theme inaccessible for backup")
+            provider.backup_files()
+        except ProviderError as exc:
             raise MaintenanceError(
-                "Theme directory access unresolved (Android scoped storage or "
-                "ADB shell denied); no changes. Inspect app-specific theme "
-                "storage before overwriting."
-            )
-    except MaintenanceError:
-        raise
+                "Theme directory is inaccessible and ThemeProvider backup failed: " +
+                str(exc) + "; no TV changes") from exc
+        (folder / "mode.txt").write_text("provider-only", encoding="utf-8")
+
     return folder
 
 
@@ -234,6 +226,18 @@ def theme_command(script: Path, action: str, timeout=210):
     return run(["bash", str(script), action], env=env, timeout=timeout)
 
 
+def restart_official_theme_home():
+    """Use the upstream Home restart and accessibility-rebind helper."""
+    exe = OFFICIAL / "tools/venv/bin/python"
+    helper = OFFICIAL / "tools/theme_restart.py"
+    if not exe.is_file() or not helper.is_file():
+        raise MaintenanceError("Pinned official restart helper unavailable")
+    env = os.environ.copy()
+    env["TV_HOST"] = "192.168.0.160"
+    env["TV_ADB_BINARY"] = shutil.which("adb") or "adb"
+    run([str(exe), "-I", str(helper)], env=env, timeout=195)
+
+
 def restore_theme(script: Path, folder: Path):
     configs = list((folder / "existing").rglob("config.json"))
     if configs:
@@ -258,13 +262,25 @@ def theme():
     before = disabled_packages()
     folder = backup_theme()
     script = prepare_upstream()
+    mode_path = folder / "mode.txt"
+    mode = mode_path.read_text(encoding="utf-8").strip() if mode_path.exists() else "full"
+    if mode not in ("full", "provider-only"):
+        raise MaintenanceError("Invalid theme backup mode")
+    provider = ProviderTheme(TV, folder) if mode == "provider-only" else None
     applied = False
     try:
-        # Official theme.sh may write an overlay before reporting a later failure.
+        # Mark before invoking a write: a partial ADB write still needs rollback.
         applied = True
-        theme_command(script, str(PRESET.parent))
-        current = adb("exec-out", "content", "read", "--uri", THEME_URI,
-                      binary=True, timeout=35)
+        if provider is not None:
+            provider.apply(PRESET.read_bytes())
+            restart_official_theme_home()
+            current = provider.read("config.json")
+            if current != PRESET.read_bytes():
+                raise MaintenanceError("Provider-only config readback differs")
+        else:
+            theme_command(script, str(PRESET.parent))
+            current = adb("exec-out", "content", "read", "--uri", THEME_URI,
+                          binary=True, timeout=35)
         if json.loads(current.decode("utf-8")) != expected:
             raise MaintenanceError("ThemeProvider readback did not match requested preset")
         adb("shell", "input", "keyevent", "3")
@@ -277,22 +293,26 @@ def theme():
         if not after.startswith(b"\x89PNG\r\n\x1a\n"):
             raise MaintenanceError("Screen verification capture missing")
         (folder / "screen-after.png").write_bytes(after)
-    except (MaintenanceError, UnicodeDecodeError, ValueError) as exc:
+    except (MaintenanceError, ProviderError, UnicodeDecodeError, ValueError) as exc:
         if applied:
             try:
-                restore_theme(script, folder)
-            except MaintenanceError as recovery:
+                if provider is not None:
+                    provider.restore()
+                    restart_official_theme_home()
+                else:
+                    restore_theme(script, folder)
+            except (MaintenanceError, ProviderError) as recovery:
                 raise MaintenanceError(str(exc) + "; RESTORE FAILED: " +
                                        str(recovery) + "; backup: " + str(folder)) from exc
         raise MaintenanceError(str(exc) + "; previous theme restored if it was changed") from exc
 
-    receipt = {"time": dt.datetime.now(dt.timezone.utc).isoformat(),
+    receipt = {"method": mode, "time": dt.datetime.now(dt.timezone.utc).isoformat(),
                "theme_sha256": digest, "backup": str(folder),
                "disabled_before": before, "home": HOME}
     RECEIPT.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
     RECEIPT.chmod(0o600)
     return ("CLEAN_YOUR_TV_THEME_OK\n"
-            "Pinned official Gathin23 v3.5.0 theme.sh applied.\n"
+            "Pinned official theme mechanism applied; mode: " + mode + ".\n"
             "Black four-column dock config verified by ThemeProvider readback.\n"
             "HOME focused; system package states unchanged.\n"
             "Private backup: " + str(folder) + "\n"
