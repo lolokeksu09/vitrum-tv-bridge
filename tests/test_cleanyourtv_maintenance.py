@@ -184,6 +184,41 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(focus.call_count, 4)
         self.assertEqual(len(pauses), 3)
 
+
+    @mock.patch.object(cm, "adb")
+    def test_theme_failure_records_window_and_running_process_without_dumping_logs(self, adb):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            def answer(*args, **kwargs):
+                if args[:4] == ("shell", "dumpsys", "window", "windows"):
+                    return "mCurrentFocus=Window{1 u0 com.android.tv.settings/.MainSettings}\\nTOKEN_PRIVATE"
+                if args[:4] == ("shell", "dumpsys", "activity", "activities"):
+                    return "topResumedActivity: ActivityRecord{2 u0 com.android.tv.settings/.MainSettings}"
+                if args[:2] == ("shell", "pidof"):
+                    return "12345"
+                if args[:3] == ("exec-out", "screencap", "-p"):
+                    return b"\\x89PNG\\r\\n\\x1a\\n" + b"image"
+                raise AssertionError(args)
+            adb.side_effect = answer
+            info = cm.capture_theme_failure_state(folder)
+            self.assertIn("com.android.tv.settings", info)
+            self.assertIn("process=running", info)
+            self.assertNotIn("TOKEN_PRIVATE", info)
+            self.assertTrue((folder / "screen-failed-before-rollback.png").is_file())
+
+    @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
+    @mock.patch.object(cm, "home_focus", return_value=False)
+    @mock.patch.object(cm, "adb")
+    def test_home_verify_attempts_direct_activity_restart_before_failing(self, adb, focus, resolver):
+        adb.return_value = "Status: ok"
+        with self.assertRaisesRegex(cm.MaintenanceError, "not confirmed"):
+            cm.verify_home_after_theme(pause=lambda _: None, tries=8)
+        direct = [c.args for c in adb.call_args_list
+                  if c.args[:4] == ("shell", "am", "start", "-W")]
+        self.assertEqual(len(direct), 1)
+        self.assertIn(cm.HOME, direct[0])
+        self.assertEqual(focus.call_count, 8)
+
     @mock.patch.object(cm, "adb")
     def test_theme_directory_probe_reports_definite_absence(self, adb):
         adb.return_value = (
