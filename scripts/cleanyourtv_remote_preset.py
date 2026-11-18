@@ -110,7 +110,7 @@ def fetch_verified_main() -> tuple[bytes, str]:
     passed = {run.get("name") for run in runs if isinstance(run, dict)
               and run.get("status") == "completed"
               and run.get("conclusion") == "success"
-              and run.get("head_sha", sha) == sha}
+              and run.get("head_sha") == sha}
     if not CHECK_RUNS.issubset(passed):
         raise RemotePresetError("Main commit has not passed both theme safety checks")
     result = gh_json("repos/" + REPO + "/contents/" + PRESET_PATH + "?ref=" + sha)
