@@ -268,6 +268,37 @@ class SafetyTests(unittest.TestCase):
         adb.side_effect = ["WINDOW MANAGER", "no activity information"]
         self.assertFalse(cm.home_focus())
 
+
+    @mock.patch.object(cm, "adb")
+    def test_hdmi_cec_probe_is_read_only_and_scrubs_other_dump_values(self, adb):
+        def reply(*args, **kwargs):
+            if args[:4] == ("shell", "settings", "get", "global"):
+                return "1" if args[4] == "hdmi_control_enabled" else "null"
+            if args == ("shell", "getprop", "ro.hdmi.device_type"):
+                return "4"
+            if args[:2] == ("shell", "cat"):
+                return "0x2f"
+            if args[:2] == ("shell", "dumpsys"):
+                return ("mHdmiControlEnabled: true\\n"
+                        "Home address: UNIQUE_PRIVATE_VALUE\\n")
+            raise AssertionError(args)
+        adb.side_effect = reply
+        output = cm.cec_power_probe()
+        self.assertIn("hdmi_control_enabled=1", output)
+        self.assertIn("amlogic_standby_bit_0x04=set", output)
+        self.assertNotIn("UNIQUE_PRIVATE_VALUE", output)
+        for call in adb.call_args_list:
+            self.assertNotIn("put", call.args)
+            self.assertNotIn("reboot", call.args)
+            self.assertNotIn("disable-user", call.args)
+
+    @mock.patch.object(cm, "adb", return_value="Permission denied")
+    def test_hdmi_cec_probe_unknown_values_do_not_grant_permission_to_change(self, adb):
+        output = cm.cec_power_probe()
+        self.assertIn("amlogic_cec_config=unavailable", output)
+        self.assertIn("hdmi_control_enabled=unknown", output)
+        self.assertEqual(adb.call_count, len(cm.CEC_GLOBAL_KEYS) + 3)
+
     @mock.patch.object(cm, "adb")
     def test_theme_directory_probe_reports_definite_absence(self, adb):
         adb.return_value = (
