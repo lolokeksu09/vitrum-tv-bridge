@@ -45,14 +45,22 @@ jobs:
           assert cfg["ambient_glow"] is False
           assert cfg["clock_glow"] is False
           assert cfg["sky_intensity"] == 0
-          assert cfg["wallpaper"] is True
+          assert cfg["wallpaper"] is False
+          assert cfg["wallpaper_dim"] == 0
           assert cfg["glass_style"] == "rim"
           assert cfg["dock_glass"] is False
+          assert cfg["dock_opacity"] == 100
+          assert cfg["dock_even_padding"] is False
+          assert cfg["show_greeting"] is False
+          assert cfg["fill_dock"] is True
+          assert cfg["always_show_names"] is False
+          assert cfg["focus_overshoot"] is False
+          assert cfg["advanced_effects"] is False
           assert cfg["dock_band_all"] is False
           assert cfg["icon_only_buttons"] is True
           assert cfg["icon_only_inputs"] is True
           assert cfg["dock_apps"] == ["com.google.android.youtube.tv", "com.vk.tv", "com.v2ray.ang", "com.tcl.browser"]
           assert "hidden_apps" not in cfg
           assert "vpn_app" not in cfg
-          print('AMOLED v3 six-column two-row grid, neutral focus and app availability validated.')
+          print('Modern TV OS: true-black six-column grid, compact header, no wallpaper or glass, preserved apps.')
           PY
