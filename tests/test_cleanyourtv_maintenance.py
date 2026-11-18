@@ -131,6 +131,7 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(any("settings put" in c for c in calls))
         self.assertFalse(any("disable-user" in c for c in calls))
 
+    @mock.patch.object(cm, "ensure_safe_adb_restart")
     @mock.patch.object(cm, "prepare_upstream")
     @mock.patch.object(cm, "restart_home_simple")
     @mock.patch.object(cm, "ProviderTheme")
@@ -138,7 +139,7 @@ class SafetyTests(unittest.TestCase):
     @mock.patch.object(cm, "disabled_packages", return_value=["package:stock"])
     @mock.patch.object(cm, "device_guard")
     def test_provider_only_mode_skips_cryptography_dependencies(
-        self, guard, disabled, backup, provider, restart, upstream
+        self, guard, disabled, backup, provider, restart, upstream, safe
     ):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
