@@ -45,6 +45,14 @@ and then write only those same two files. It checks content by reading it back
 and uses the pinned upstream `theme_restart.py` helper to restore the launcher
 and any enabled accessibility key helpers.
 
+The fallback does **not** install `adb-shell`, `rsa` or `cryptography` on
+Termux. Instead of running `theme_restart.py`, which depends on those Python
+packages, it checks that CleanYourTV's accessibility key helpers are **not**
+enabled, then restarts only `com.gathin.tvhome` with standard ADB
+`am force-stop` / `am start`. If those helpers are enabled, it refuses
+this simplified restart rather than altering system Accessibility settings.
+The full upstream helper is still used in the ordinary full-theme mode.
+
 The fallback **never lists or deletes private wallpapers**. If the provider
 cannot read an existing file or determine whether it is absent, it stops
 before writing. If a partially applied update fails, it restores the
