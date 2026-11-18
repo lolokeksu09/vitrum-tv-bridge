@@ -152,6 +152,38 @@ class SafetyTests(unittest.TestCase):
             provider.return_value.restore.assert_called_once()
             restart.assert_called_once()
 
+
+    @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
+    @mock.patch.object(cm, "home_focus", side_effect=[False, False, True])
+    @mock.patch.object(cm, "adb")
+    def test_home_focus_wait_retries_after_transient_android_launch(self, adb, focus, resolver):
+        pauses = []
+        cm.verify_home_after_theme(pause=lambda n: pauses.append(n), tries=5)
+        self.assertEqual(focus.call_count, 3)
+        self.assertGreaterEqual(len(pauses), 2)
+        self.assertTrue(all(c.args[:3] == ("shell", "input", "keyevent")
+                            for c in adb.call_args_list))
+        self.assertTrue(all(c.args[3] == "3" for c in adb.call_args_list))
+
+    @mock.patch.object(cm, "home_resolver", return_value="com.google.android.tvlauncher/.Home")
+    @mock.patch.object(cm, "home_focus")
+    @mock.patch.object(cm, "adb")
+    def test_home_focus_wait_rejects_wrong_system_default_without_key_events(self, adb, focus, resolver):
+        with self.assertRaisesRegex(cm.MaintenanceError, "default HOME"):
+            cm.verify_home_after_theme(pause=lambda _: None, tries=3)
+        adb.assert_not_called()
+        focus.assert_not_called()
+
+    @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
+    @mock.patch.object(cm, "home_focus", return_value=False)
+    @mock.patch.object(cm, "adb")
+    def test_home_focus_wait_fails_closed_after_retry_limit(self, adb, focus, resolver):
+        pauses = []
+        with self.assertRaisesRegex(cm.MaintenanceError, "not confirmed"):
+            cm.verify_home_after_theme(pause=lambda n: pauses.append(n), tries=4)
+        self.assertEqual(focus.call_count, 4)
+        self.assertEqual(len(pauses), 3)
+
     @mock.patch.object(cm, "adb")
     def test_theme_directory_probe_reports_definite_absence(self, adb):
         adb.return_value = (
