@@ -215,8 +215,9 @@ def theme():
     script = prepare_upstream()
     applied = False
     try:
-        theme_command(script, str(PRESET.parent))
+        # Official theme.sh may write an overlay before reporting a later failure.
         applied = True
+        theme_command(script, str(PRESET.parent))
         current = adb("exec-out", "content", "read", "--uri", THEME_URI,
                       binary=True, timeout=35)
         if json.loads(current.decode("utf-8")) != expected:
