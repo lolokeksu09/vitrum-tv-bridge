@@ -86,6 +86,13 @@ The maintenance operation does **not** grant arbitrary remote ADB shell,
 package disable/uninstall, root, network DNS changes, or firmware flashing.
 See [BOXY maintenance instructions](docs/CLEANYOURTV-BOXY-MAINTENANCE.md).
 
+For future appearance-only updates the BOXY can obtain a strictly validated,
+CI-approved theme JSON directly from `main` **without another manual git pull**.
+The first installation of that feature still requires a single local repository
+update because the existing agent cannot change its own code remotely. See
+[autonomous BOXY theme deployment](docs/CLEANYOURTV-BOXY-AUTONOMOUS.md).
+
+
 ## Trust boundary and limitations
 
 - **No arbitrary shell**, root, deletion, firmware flashing, accessibility services, remote arbitrary file access, VPN credential retrieval, SSH server, port forwarding or inbound Internet access.
