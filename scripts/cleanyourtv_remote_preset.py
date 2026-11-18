@@ -152,10 +152,10 @@ def fetch_verified_anime_wallpaper() -> bytes:
         raw = base64.b64decode("".join(payload.splitlines()), validate=True)
     except (ValueError, base64.binascii.Error) as exc:
         raise RemotePresetError("Anime artwork has invalid base64") from exc
-    if not 0 < len(raw) <= 500_000 or not raw.startswith(b"\\xff\\xd8\\xff"):
+    if not 0 < len(raw) <= 500_000 or not raw.startswith(b"\xff\xd8\xff"):
         raise RemotePresetError("Anime artwork must be a bounded JPEG")
     git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") +
-                            b"\\0" + raw).hexdigest()
+                            b"\0" + raw).hexdigest()
     if git_blob != ART_GIT_SHA:
         raise RemotePresetError("Anime artwork content SHA mismatch; no changes")
     return raw
