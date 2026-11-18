@@ -89,7 +89,10 @@ See [BOXY maintenance instructions](docs/CLEANYOURTV-BOXY-MAINTENANCE.md).
 For future appearance-only updates the BOXY can obtain a strictly validated,
 CI-approved theme JSON directly from `main` **without another manual git pull**.
 The first installation of that feature still requires a single local repository
-update because the existing agent cannot change its own code remotely. See
+update because the existing agent cannot change its own code remotely.
+Anime artwork support similarly needs a one-time trusted-code update: only a
+fixed, Git-SHA-verified CC0 image from the official upstream theme can be
+installed, and previous wallpaper bytes are backed up for rollback. See
 [autonomous BOXY theme deployment](docs/CLEANYOURTV-BOXY-AUTONOMOUS.md).
 
 
