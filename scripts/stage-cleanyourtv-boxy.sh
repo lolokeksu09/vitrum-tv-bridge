@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage CleanYourTV on the already-authorized BOXY Android TV.
 # Installs and starts the official launcher; never disables or removes stock software.
-# Usage: bash scripts/stage-cleanyourtv-boxy.sh <successful-main-workflow-run-id>
+# Usage: bash scripts/stage-cleanyourtv-boxy.sh [successful-main-workflow-run-id]
 set -euo pipefail
 
 REPO="lolokeksu09/vitrum-tv-bridge"
@@ -9,14 +9,24 @@ TV="192.168.0.160:5555"
 EXPECTED_MODEL="4K Android TV Box"
 ARTIFACT="CleanYourTV-BOXY-v3.5.0"
 
-if [[ ${1:-} == "" || ! ${1:-} =~ ^[0-9]+$ ]]; then
-  echo "Usage: bash scripts/stage-cleanyourtv-boxy.sh <successful-GitHub-Actions-run-id>" >&2
-  exit 2
-fi
-RUN_ID="$1"
 for tool in adb gh sha256sum find awk mktemp; do
   command -v "$tool" >/dev/null || { echo "Missing command: $tool" >&2; exit 1; }
 done
+if (( $# > 1 )); then
+  echo "Usage: bash scripts/stage-cleanyourtv-boxy.sh [successful-main-workflow-run-id]" >&2
+  exit 2
+fi
+if (( $# == 1 )); then
+  RUN_ID="$1"
+else
+  # Discover the most recent successful main-branch build automatically.
+  RUN_ID="$(gh run list -R "$REPO" --workflow build-cleanyourtv-boxy.yml --branch main \
+    --limit 20 --json databaseId,conclusion,event,status \
+    --jq '[.[] | select(.status == "completed" and .conclusion == "success" and .event == "push")][0].databaseId')"
+fi
+[[ "$RUN_ID" =~ ^[0-9]+$ ]] || {
+  echo "No verified successful main-branch CleanYourTV build yet. No TV changes." >&2; exit 1;
+}
 
 # Do not trust an arbitrary run, branch or artifact name.
 OK="$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '(.name == "Build CleanYourTV for BOXY" and .head_branch == "main" and .event == "push" and .status == "completed" and .conclusion == "success" and .repository.full_name == "lolokeksu09/vitrum-tv-bridge")')"
