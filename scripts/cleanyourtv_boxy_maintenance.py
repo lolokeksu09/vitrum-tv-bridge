@@ -20,8 +20,10 @@ import time
 
 if __package__:
     from .cleanyourtv_provider_files import ProviderTheme, ProviderError
+    from .boxy_minimal_wallpaper import generate as make_wallpaper
 else:
     from cleanyourtv_provider_files import ProviderTheme, ProviderError
+    from boxy_minimal_wallpaper import generate as make_wallpaper
 
 MODEL = "4K Android TV Box"
 TV = "192.168.0.160:5555"
@@ -98,9 +100,14 @@ def check_preset():
     except (OSError, ValueError) as exc:
         raise MaintenanceError("Official-format BOXY preset missing or invalid") from exc
     if (cfg.get("dock_apps") != DOCK or cfg.get("columns") != 4
+            or cfg.get("rows_below_dock") != 1
             or cfg.get("background_color") != "#000000"
-            or cfg.get("wallpaper") is not False):
-        raise MaintenanceError("Unexpected BOXY preset changes; refusing to apply")
+            or cfg.get("wallpaper") is not True
+            or cfg.get("single_row") is not True
+            or cfg.get("dock_title") is not False
+            or cfg.get("ambient_glow") is not False
+            or cfg.get("sky_intensity") != 0):
+        raise MaintenanceError("Unexpected BOXY OLED preset; refusing to apply")
     return cfg, hashlib.sha256(raw).hexdigest()
 
 
@@ -325,27 +332,17 @@ def backup_theme():
     (folder / "home-before.txt").write_text(home_resolver() + "\n", encoding="utf-8")
     (folder / "screen-before.png").write_bytes(
         adb("exec-out", "screencap", "-p", binary=True))
-    # Scoped storage prevents listing Android/data on Android 11.
-    # The official ThemeProvider can back up config/revision without touching
-    # an inaccessible wallpaper collection.
-    state = remote_directory_state()
-    if state == "exists":
-        dest = folder / "existing"
-        dest.mkdir()
-        run(["adb", "-s", TV, "pull", REMOTE, str(dest)], timeout=80)
-        files = list(dest.rglob("*"))
-        if not any(x.is_file() for x in files):
-            raise MaintenanceError("Existing theme directory backup is empty")
-        (folder / "mode.txt").write_text("full", encoding="utf-8")
-    else:
-        provider = ProviderTheme(TV, folder)
-        try:
-            provider.backup_files()
-        except ProviderError as exc:
-            raise MaintenanceError(
-                "Theme directory is inaccessible and ThemeProvider backup failed: " +
-                str(exc) + "; no TV changes") from exc
-        (folder / "mode.txt").write_text("provider-only", encoding="utf-8")
+    # This design uses a fixed launcher-owned wallpaper. Even if Android/data
+    # happens to be accessible, use the safer official ThemeProvider so every
+    # overwritten file is first backed up byte-for-byte. Never clear a
+    # wallpaper collection or run the full-theme helper's reset operation.
+    provider = ProviderTheme(TV, folder)
+    try:
+        provider.backup_files()
+    except ProviderError as exc:
+        raise MaintenanceError("ThemeProvider backup failed; no changes: " +
+                               str(exc)) from exc
+    (folder / "mode.txt").write_text("provider-only", encoding="utf-8")
 
     return folder
 
@@ -446,6 +443,11 @@ def restore_theme(script: Path, folder: Path):
 def theme():
     device_guard()
     expected, digest = check_preset()
+    wallpaper = make_wallpaper()
+    if (not wallpaper.startswith(b"\x89PNG\r\n\x1a\n")
+            or len(wallpaper) > 8_000_000):
+        raise MaintenanceError("Generated wallpaper invalid; no changes")
+    wallpaper_sha256 = hashlib.sha256(wallpaper).hexdigest()
     before = disabled_packages()
     folder = backup_theme()
     mode_path = folder / "mode.txt"
@@ -466,11 +468,13 @@ def theme():
         # Mark before invoking a write: a partial ADB write still needs rollback.
         applied = True
         if provider is not None:
-            provider.apply(PRESET.read_bytes())
+            provider.apply(PRESET.read_bytes(), wallpaper=wallpaper)
             restart_home_simple()
             current = provider.read("config.json")
             if current != PRESET.read_bytes():
                 raise MaintenanceError("Provider-only config readback differs")
+            if hashlib.sha256(provider.read("wallpaper.jpg") or b"").hexdigest() != wallpaper_sha256:
+                raise MaintenanceError("Provider-only wallpaper readback differs")
         else:
             theme_command(script, str(PRESET.parent))
             current = adb("exec-out", "content", "read", "--uri", THEME_URI,
@@ -503,13 +507,14 @@ def theme():
         raise MaintenanceError(str(exc) + "; previous theme restored if it was changed") from exc
 
     receipt = {"method": mode, "time": dt.datetime.now(dt.timezone.utc).isoformat(),
-               "theme_sha256": digest, "backup": str(folder),
+               "theme_sha256": digest, "wallpaper_sha256": wallpaper_sha256,
+               "backup": str(folder),
                "disabled_before": before, "home": HOME}
     RECEIPT.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
     RECEIPT.chmod(0o600)
     return ("CLEAN_YOUR_TV_THEME_OK\n"
             "Pinned official theme mechanism applied; mode: " + mode + ".\n"
-            "Black four-column dock config verified by ThemeProvider readback.\n"
+            "OLED single-row dock and wallpaper verified by ThemeProvider readback.\n"
             "HOME focused; system package states unchanged.\n"
             "Private backup: " + str(folder) + "\n"
             "Reboot not yet performed; use separate reboot_check.")
@@ -534,6 +539,11 @@ def reboot_check():
     themed = adb("exec-out", "content", "read", "--uri", THEME_URI, binary=True)
     if json.loads(themed.decode("utf-8")) != cfg:
         raise MaintenanceError("Theme disappeared; no reboot")
+    if receipt.get("wallpaper_sha256"):
+        actual_wallpaper = adb("exec-out", "content", "read", "--uri",
+                               "content://" + PKG + ".theme/wallpaper.jpg", binary=True)
+        if hashlib.sha256(actual_wallpaper).hexdigest() != receipt["wallpaper_sha256"]:
+            raise MaintenanceError("Wallpaper changed before reboot; no reboot")
     adb("reboot", timeout=15, okay=True)
     time.sleep(12)
     online = False

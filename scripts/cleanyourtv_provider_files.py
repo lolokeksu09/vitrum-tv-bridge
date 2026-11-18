@@ -1,7 +1,8 @@
 """Official ThemeProvider fallback for Android TV 11 scoped storage.
 
-Touches exactly two launcher-owned files: config.json and theme_revision.
-Never reads, writes, deletes, lists or resets wallpapers or system packages.
+Touches only the three explicitly allowlisted launcher-owned files:
+config.json, wallpaper.jpg and theme_revision.
+Never lists, deletes or alters the wallpapers/ collection, system packages or TV settings.
 All content (including prior private theme preferences) remains on the phone.
 """
 from __future__ import annotations
@@ -13,7 +14,7 @@ import subprocess
 import uuid
 
 BASE_URI = "content://com.gathin.tvhome.theme/"
-FILES = ("config.json", "theme_revision")
+FILES = ("wallpaper.jpg", "config.json", "theme_revision")
 
 
 class ProviderError(Exception):
@@ -61,7 +62,8 @@ class ProviderTheme:
             if b"FileNotFoundException" in result.stdout:
                 return None
             raise ProviderError("ThemeProvider read reported a non-file error")
-        if len(result.stdout) > 512000:
+        limit = 8_000_000 if name == "wallpaper.jpg" else 512000
+        if len(result.stdout) > limit:
             raise ProviderError("Existing theme file too large to back up safely")
         if len(result.stdout) == 0 and name == "config.json":
             raise ProviderError("Empty existing theme config cannot be classified")
@@ -97,9 +99,16 @@ class ProviderTheme:
 
     def write(self, name, content):
         uri = self._uri(name)
-        if (not isinstance(content, bytes) or len(content) > 512000
+        limit = 8_000_000 if name == "wallpaper.jpg" else 512000
+        if (not isinstance(content, bytes) or len(content) > limit
                 or (len(content) == 0 and name != "theme_revision")):
             raise ProviderError("Invalid bounded theme payload")
+        if name == "wallpaper.jpg" and not (
+            content.startswith(b"\x89PNG\r\n\x1a\n")
+            or content.startswith(b"\xff\xd8\xff")
+            or (content.startswith(b"RIFF") and content[8:12] == b"WEBP")
+        ):
+            raise ProviderError("Wallpaper bytes must be a supported image format")
         unique = uuid.uuid4().hex[:12]
         remote = "/data/local/tmp/cyt-boxy-" + unique + "-" + name
         source = self.backup / ("stage-" + unique + "-" + name)
@@ -145,9 +154,15 @@ class ProviderTheme:
         if errors:
             raise ProviderError("Provider rollback incomplete: " + "; ".join(errors))
 
-    def apply(self, config: bytes):
-        self._original()   # No mutation until both original files were safely captured.
-        if not isinstance(json.loads(config), dict):
+    def apply(self, config: bytes, wallpaper: bytes | None = None):
+        self._original()  # No mutation until ALL original files were captured.
+        new_config = json.loads(config)
+        if not isinstance(new_config, dict):
             raise ProviderError("New theme config is not a JSON object")
+        if new_config.get("wallpaper") is True and wallpaper is None:
+            raise ProviderError("Theme references a wallpaper but none was supplied")
+        # Write background first so it exists before the new config enables it.
+        if wallpaper is not None:
+            self.write("wallpaper.jpg", wallpaper)
         self.write("config.json", config)
         self.write("theme_revision", uuid.uuid4().hex.encode("ascii"))
