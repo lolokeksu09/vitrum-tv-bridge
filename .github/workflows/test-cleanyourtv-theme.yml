@@ -5,12 +5,18 @@ on:
     paths:
       - presets/cleanyourtv-boxy/config.json
       - docs/CLEANYOURTV-BOXY-PRESET.md
+      - docs/CLEANYOURTV-BOXY-AUTONOMOUS.md
+      - scripts/cleanyourtv_remote_preset.py
+      - tests/test_cleanyourtv_remote_preset.py
       - .github/workflows/test-cleanyourtv-theme.yml
   push:
     branches: [main]
     paths:
       - presets/cleanyourtv-boxy/config.json
       - docs/CLEANYOURTV-BOXY-PRESET.md
+      - docs/CLEANYOURTV-BOXY-AUTONOMOUS.md
+      - scripts/cleanyourtv_remote_preset.py
+      - tests/test_cleanyourtv_remote_preset.py
       - .github/workflows/test-cleanyourtv-theme.yml
 
 permissions:
