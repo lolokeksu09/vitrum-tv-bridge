@@ -65,6 +65,28 @@ class SafetyTests(unittest.TestCase):
         restore.assert_called_once_with(Path("/tmp/official-theme.sh"), Path("/tmp/backup"))
 
     @mock.patch.object(cm, "run")
+    @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
+    @mock.patch.object(cm, "disabled_packages", return_value=[])
+    @mock.patch.object(cm, "adb")
+    def test_provider_overlay_inaccessible_to_shell_fails_closed(
+        self, adb, disabled, home, run
+    ):
+        with tempfile.TemporaryDirectory() as temp:
+            def answer(*args, **kwargs):
+                if args[:3] == ("exec-out", "screencap", "-p"):
+                    return b"\\x89PNG\\r\\n\\x1a\\n" + b"test"
+                if args[:3] == ("shell", "ls", "-d"):
+                    return ""
+                if args[:3] == ("exec-out", "content", "read"):
+                    return b'{"columns":4}'
+                raise AssertionError("Unexpected ADB command: " + str(args))
+            adb.side_effect = answer
+            with mock.patch.object(cm, "BACKUPS", Path(temp) / "backups"):
+                with self.assertRaisesRegex(cm.MaintenanceError, "inaccessible for backup"):
+                    cm.backup_theme()
+        run.assert_not_called()
+
+    @mock.patch.object(cm, "run")
     def test_only_exact_fixed_cli_operations_are_allowed(self, run):
         with mock.patch.object(cm.sys, "argv", ["maintenance", "shell", "pm disable-user"]):
             with self.assertRaisesRegex(cm.MaintenanceError, "Fixed operations only"):
