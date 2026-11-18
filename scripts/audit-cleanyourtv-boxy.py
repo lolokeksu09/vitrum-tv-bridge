@@ -174,7 +174,7 @@ def main() -> int:
         *(f"  {pkg}" for pkg in sorted(user_packages)),
         "",
         "SNAPSHOT WARNINGS:",
-        *(f"  {item}" for item in failures) if failures else ["  none"],
+        *([f"  {item}" for item in failures] if failures else ["  none"]),
         "",
         "IMPORTANT: The audit has NOT disabled, removed, or reconfigured any package.",
         "Do not copy a debloat list for another Skyworth model.",
