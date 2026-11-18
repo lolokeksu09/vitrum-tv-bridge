@@ -526,7 +526,7 @@ def theme(*, update_from_main=False):
             "Verified AMOLED grid / no-wallpaper config applied; layout " +
             str(expected["columns"]) + " columns and " +
             str(expected["rows_below_dock"]) + " rows.\n" +
-            ("CI-verified main: " + remote_sha[:12] + "\n" if remote_sha else "")
+            ("CI-verified main: " + remote_sha[:12] + "\n" if remote_sha else "") +
             "HOME focused; system package states unchanged.\n"
             "Private backup: " + str(folder) + "\n"
             "Reboot not yet performed; use separate reboot_check.")
