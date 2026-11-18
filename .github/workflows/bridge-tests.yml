@@ -8,10 +8,12 @@ on:
       - 'test_tv_bridge.py'
       - 'test_tv_bridge_v2.py'
       - 'scripts/cleanyourtv_boxy_maintenance.py'
+      - 'scripts/cleanyourtv_remote_preset.py'
       - 'scripts/cleanyourtv_provider_files.py'
       - 'scripts/boxy_minimal_wallpaper.py'
       - 'presets/cleanyourtv-boxy/config.json'
       - 'tests/test_cleanyourtv_maintenance.py'
+      - 'tests/test_cleanyourtv_remote_preset.py'
       - 'tests/test_cleanyourtv_provider_theme.py'
       - 'tests/test_boxy_minimal_wallpaper.py'
       - '.github/workflows/bridge-tests.yml'
@@ -31,5 +33,5 @@ jobs:
           python-version: '3.12'
       - name: Test approved requests and rejected inputs
         run: |
-          python -m py_compile scripts/cleanyourtv_boxy_maintenance.py scripts/cleanyourtv_provider_files.py scripts/boxy_minimal_wallpaper.py tv_bridge_v2.py
-          python -m unittest -v test_tv_bridge.py test_tv_bridge_v2.py tests/test_cleanyourtv_maintenance.py tests/test_cleanyourtv_provider_theme.py tests/test_boxy_minimal_wallpaper.py
+          python -m py_compile scripts/cleanyourtv_boxy_maintenance.py scripts/cleanyourtv_provider_files.py scripts/cleanyourtv_remote_preset.py scripts/boxy_minimal_wallpaper.py tv_bridge_v2.py
+          python -m unittest -v test_tv_bridge.py test_tv_bridge_v2.py tests/test_cleanyourtv_maintenance.py tests/test_cleanyourtv_remote_preset.py tests/test_cleanyourtv_provider_theme.py tests/test_boxy_minimal_wallpaper.py
