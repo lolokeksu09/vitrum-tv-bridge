@@ -7,6 +7,7 @@ TV="192.168.0.160:5555"
 NEW_PKG="com.gathin.tvhome"
 NEW_HOME="com.gathin.tvhome/.MainActivity"
 STOCK=""
+STOCK_COMPONENT=""
 CHANGED=0
 VERIFIED=0
 
@@ -74,8 +75,9 @@ adb -s "$TV" shell cmd package set-home-activity --user 0 "$NEW_HOME" > "$BACKUP
 adb -s "$TV" shell input keyevent 3
 sleep 2
 FOCUS="$(get_focus_package)"
-echo "Focused after HOME: $FOCUS"
-if [[ "$FOCUS" == "$NEW_PKG" ]]; then
+RESOLVED_FIRST="$(adb -s "$TV" shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -n 1 | tr -d '\r')"
+echo "Focused after HOME: $FOCUS; resolver: $RESOLVED_FIRST"
+if [[ "$FOCUS" == "$NEW_PKG" && "$RESOLVED_FIRST" == "$NEW_PKG/"* ]]; then
   VERIFIED=1
   echo "HOME_OK: CleanYourTV works without disabling stock. Backup: $BACKUP"
   exit 0
