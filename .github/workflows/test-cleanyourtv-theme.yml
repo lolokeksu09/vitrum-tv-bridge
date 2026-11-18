@@ -29,9 +29,17 @@ jobs:
           cfg = json.loads(Path('presets/cleanyourtv-boxy/config.json').read_text())
           assert cfg["columns"] == 4
           assert cfg["background_color"] == "#000000"
-          assert cfg["rows_below_dock"] == 0
+          assert cfg["rows_below_dock"] == 1  # positions dock centrally, single_row hides lower grid
+          assert cfg["single_row"] is True
+          assert cfg["dock_title"] is False
+          assert cfg["ambient_glow"] is False
+          assert cfg["sky_intensity"] == 0
+          assert cfg["wallpaper"] is True
+          assert cfg["show_greeting"] is True
+          assert cfg["icon_only_buttons"] is False
+          assert cfg["dock_opacity"] == 78
           assert cfg["dock_apps"] == ["com.google.android.youtube.tv", "com.vk.tv", "com.v2ray.ang", "com.tcl.browser"]
           assert "hidden_apps" not in cfg
-          assert all(isinstance(v, bool) for k,v in cfg.items() if k not in ("columns","rows_below_dock","background_color","dock_apps"))
-          print('Preset JSON and non-destructive constraints verified.')
+          assert "vpn_app" not in cfg
+          print('OLED preset, horizontal app access and dock package invariants verified.')
           PY
