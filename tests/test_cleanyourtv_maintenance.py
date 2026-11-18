@@ -128,7 +128,7 @@ class SafetyTests(unittest.TestCase):
                 else (_ for _ in ()).throw(AssertionError("Unexpected wallpaper read"))
             )
             adb.side_effect = lambda *args, **kwargs: (
-                b"\\x89PNG\\r\\n\\x1a\\n" + b"image"
+                b"\x89PNG\r\n\x1a\n" + b"image"
                 if args[:3] == ("exec-out", "screencap", "-p") else ""
             )
             with mock.patch.object(cm, "RECEIPT", Path(temp) / "receipt.json"):
