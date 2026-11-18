@@ -238,6 +238,38 @@ def restart_official_theme_home():
     run([str(exe), "-I", str(helper)], env=env, timeout=195)
 
 
+def ensure_safe_adb_restart():
+    """No-op safety gate: refuse a simplified restart if launcher key helpers are enabled.
+
+    The pinned upstream helper rebinds accessibility services. When none of its
+    accessibility components is enabled, ADB can restart only the app, without
+    editing global settings or requiring Python cryptography on Termux.
+    """
+    raw = adb("shell", "settings", "--user", "0", "get", "secure",
+              "enabled_accessibility_services").strip()
+    state = adb("shell", "settings", "--user", "0", "get", "secure",
+                "accessibility_enabled").strip()
+    if state not in ("0", "1", "null"):
+        raise MaintenanceError("Could not verify Android accessibility state; no changes")
+    entries = () if raw in ("", "null") else raw.split(":")
+    if any(entry.startswith(PKG + "/") for entry in entries):
+        raise MaintenanceError(
+            "CleanYourTV accessibility key helpers are enabled; "
+            "the full official service-rebinding helper is required"
+        )
+
+
+def restart_home_simple():
+    """Restart only CleanYourTV via native ADB, never touch other settings."""
+    ensure_safe_adb_restart()
+    if home_resolver() != HOME:
+        raise MaintenanceError("Default HOME changed; refusing launcher restart")
+    adb("shell", "am", "force-stop", "--user", "0", PKG)
+    output = adb("shell", "am", "start", "-W", "--user", "0", "-n", HOME)
+    if "Status: ok" not in output and "Warning: Activity not started" not in output:
+        raise MaintenanceError("CleanYourTV did not report successful activity launch")
+
+
 def restore_theme(script: Path, folder: Path):
     configs = list((folder / "existing").rglob("config.json"))
     if configs:
@@ -261,19 +293,26 @@ def theme():
     expected, digest = check_preset()
     before = disabled_packages()
     folder = backup_theme()
-    script = prepare_upstream()
     mode_path = folder / "mode.txt"
     mode = mode_path.read_text(encoding="utf-8").strip() if mode_path.exists() else "full"
     if mode not in ("full", "provider-only"):
         raise MaintenanceError("Invalid theme backup mode")
     provider = ProviderTheme(TV, folder) if mode == "provider-only" else None
+    # A scoped-storage backup is config-only, so applying it through the
+    # upstream ThemeProvider requires no adb_shell/rsa/cryptography dependencies.
+    # Verify the native restart is safe BEFORE any provider bytes are changed.
+    if provider is not None:
+        ensure_safe_adb_restart()
+        script = None
+    else:
+        script = prepare_upstream()
     applied = False
     try:
         # Mark before invoking a write: a partial ADB write still needs rollback.
         applied = True
         if provider is not None:
             provider.apply(PRESET.read_bytes())
-            restart_official_theme_home()
+            restart_home_simple()
             current = provider.read("config.json")
             if current != PRESET.read_bytes():
                 raise MaintenanceError("Provider-only config readback differs")
@@ -298,7 +337,7 @@ def theme():
             try:
                 if provider is not None:
                     provider.restore()
-                    restart_official_theme_home()
+                    restart_home_simple()
                 else:
                     restore_theme(script, folder)
             except (MaintenanceError, ProviderError) as recovery:
