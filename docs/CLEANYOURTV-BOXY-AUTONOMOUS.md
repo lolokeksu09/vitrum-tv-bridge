@@ -21,11 +21,10 @@ its result and verifying a live screenshot and D-pad navigation through the agen
 - The exact branch SHA is resolved first and used to fetch `config.json`.
 - Both named GitHub check jobs, `verify-preset` and
   `strict-read-only-bridge`, must report completed/success for that commit.
-- A strict allowlist limits which theme keys may change. BOXY must keep a flat
-  black base, no colored glow, visible vertical app grid. Wallpaper is enabled
-  only with a separately SHA-pinned upstream anime JPEG; no unverified image or
-  arbitrary path may be supplied,
-  and the existing four known pinned app packages. Values and types are bounded.
+- A strict allowlist limits which theme keys may change. BOXY must keep
+  an AMOLED-black base, no coloured glow, a visible multirow grid, and the
+  four known dock favourites. Values and types are bounded. Wallpaper can be
+  enabled only with the separately pinned anime JPEG, never an arbitrary image.
   Unknown fields are rejected, including package removal, remote shell,
   accessibility/input remapping, network or VPN settings.
 - The trusted local maintenance code performs the same device/Home checks,
@@ -54,14 +53,13 @@ git -C ~/vitrum-tv-bridge pull --ff-only
 No agent restart is needed: the existing v2 bridge launches
 `scripts/cleanyourtv_boxy_maintenance.py` fresh for each approved request.
 
-**After installing the updated theme script once, no further `git pull` is necessary for
-changes confined to the permitted CleanYourTV theme JSON and the one fixed,
-SHA-verified anime wallpaper. This **new anime feature requires an additional
-one-time bootstrap** because the previously installed script rejects wallpaper.
+**The anime feature requires one new, one-time local bootstrap.** The
+previously installed script correctly rejects wallpaper-enabled themes. After
+updating the trusted local script, changes confined to the permitted JSON
+fields and the same pinned artwork no longer require another `git pull`.
 
-Updates to agent
-code, expanded permissions or new operations still require explicit local
-installation; the agent is deliberately not a remote arbitrary-code executor.
+Updates to agent code, expanded permissions or new operations still require
+explicit local installation; the agent is not an arbitrary-code executor.
 
 The Termux agent must be running with `--watch --allow-maintenance` to
 process remote requests. Its launch flags control whether commands can run;
@@ -75,7 +73,7 @@ test focus and all visible rows, and verify Home after launching an app.
 
 To restore an earlier theme, use the retained local private backup under
 `~/cleanyourtv-backups/theme-<UTC timestamp>/`. Errors attempt an automatic
-byte-exact rollback of the previous config and revision.
+byte-exact rollback of the previous config, revision and wallpaper.
 
 The local Home/ADB connection is not a cloud service. If the phone sleeps, Termux
 stops or Wi-Fi/ADB disconnects, autonomous application pauses until the
