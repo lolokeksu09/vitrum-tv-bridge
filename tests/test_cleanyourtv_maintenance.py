@@ -75,8 +75,9 @@ class SafetyTests(unittest.TestCase):
             def answer(*args, **kwargs):
                 if args[:3] == ("exec-out", "screencap", "-p"):
                     return b"\\x89PNG\\r\\n\\x1a\\n" + b"test"
-                if args[:3] == ("shell", "ls", "-d"):
-                    return ""
+                if len(args) == 2 and args[0] == "shell" and "CYT_LS_EXIT" in args[1]:
+                    return ("ls: /sdcard/Android/data/com.gathin.tvhome/files: "
+                            "Permission denied\\nCYT_LS_EXIT:1")
                 if args[:3] == ("exec-out", "content", "read"):
                     return b'{"columns":4}'
                 raise AssertionError("Unexpected ADB command: " + str(args))
