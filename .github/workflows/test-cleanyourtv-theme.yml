@@ -1,0 +1,37 @@
+name: CleanYourTV BOXY preset validation
+
+on:
+  pull_request:
+    paths:
+      - presets/cleanyourtv-boxy/config.json
+      - docs/CLEANYOURTV-BOXY-PRESET.md
+      - .github/workflows/test-cleanyourtv-theme.yml
+  push:
+    branches: [main]
+    paths:
+      - presets/cleanyourtv-boxy/config.json
+      - docs/CLEANYOURTV-BOXY-PRESET.md
+      - .github/workflows/test-cleanyourtv-theme.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-preset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON and reversible preset boundaries
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          cfg = json.loads(Path('presets/cleanyourtv-boxy/config.json').read_text())
+          assert cfg["columns"] == 4
+          assert cfg["background_color"] == "#000000"
+          assert cfg["rows_below_dock"] == 0
+          assert "dock_apps" not in cfg
+          assert "hidden_apps" not in cfg
+          assert all(isinstance(v, bool) for k,v in cfg.items() if k not in ("columns","rows_below_dock","background_color"))
+          print('Preset JSON and non-destructive constraints verified.')
+          PY
