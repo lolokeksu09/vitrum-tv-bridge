@@ -1,68 +1,67 @@
-# CleanYourTV BOXY — AMOLED Anime (proposed successor to v3.1)
+# CleanYourTV BOXY — Modern TV OS (AMOLED)
 
-Target: existing `com.gathin.tvhome` CleanYourTV 3.5.0 on Skyworth HP44H,
-Android TV 11. No new launcher APK is installed by this change.
+Device: Skyworth BOXY HP44H / Android TV 11, existing `com.gathin.tvhome`
+CleanYourTV v3.5.0. This is a **theme-only update** (no new APK).
 
-## Visual design
+## Goal
 
-- `#000000` AMOLED-black base with the fixed, original CC0 teal-ninja anime
-  wallpaper from upstream `Gathin23/cleanyourtv` v3.5.0.
-- The image is slightly dimmed (`wallpaper_dim=15`), with no coloured ambient
-  glow, no app glow, no sky gradient, and no animated overshoot.
-- Six columns; two visible grid rows below the first row.
-- Four known favourites preserved: YouTube, VK Видео, v2rayNG and BrowseHere.
-  Remaining app slots are filled normally; no packages are hidden or disabled.
-- Frosted dock is OFF (`dock_glass=false`), dock bands OFF, opacity 100%.
-- Wi-Fi, Settings and Inputs controls use compact icon-only variants.
-- Greeting line stays hidden; clock and date stay visible.
-- `glass_style=rim` remains the minimal **solid** focus outline. In the
-  existing CleanYourTV 3.5.0 binary, supported focus styles are only glass,
-  rim and halo. The theme system cannot turn the outline off. To remove
-  it completely requires a **separately built and verified APK**, not an
-  unsupported `glass_style=none` value. Keep D-pad focus discoverable.
+Practical modern TV home rather than illustration-led or frosted-glass design:
+apps visible immediately, visually quiet chrome, deep black on OLED, and clear
+remote focus.
 
-## Asset provenance
+## Installed theme target
 
-Exactly one original, CC0-licensed upstream `weeb` image is supported:
+- **True black** `#000000`, `wallpaper=false`, `wallpaper_dim=0`: the previous
+  anime image is **not displayed**. The existing `wallpaper.jpg` is **not
+  deleted or rewritten**, so it remains recoverable from the prior theme.
+- **6 columns**, `rows_below_dock=2`: the current nine installed tile icons
+  fit in the existing screenshot viewport without scrolling.
+- **Four fixed favourites** remain at the beginning: YouTube, VK Видео,
+  v2rayNG, BrowseHere. `fill_dock=true` fills unused first-row slots from
+  the installed app list. No apps are hidden, disabled, removed or renamed.
+- **No glass**: `dock_glass=false`, `dock_band=false`,
+  `dock_band_all=false`, fully opaque dock, no coloured app or ambient glow.
+- **Compact header**: clock/date on the left, icon-only Wi-Fi/Settings on the
+  right; greeting/title omitted. Wi-Fi and other existing actions are kept.
+- **No redundant names** beneath every banner (`always_show_names=false`).
+  The selected app may still show its name for remote clarity.
+- **Focus navigation**: `glass_style=rim` keeps the thinnest solid non-glass
+  outline, and overshoot/motion effects stay off. The launcher v3.5.0 accepts
+  only `glass`, `rim`, `halo`, not `none`. Removing all focus indication
+  is not compatible with reliable D-pad control.
 
-- Repository: `Gathin23/cleanyourtv`
-- Commit: `d11bd68c9ac45b2fb38480941586d17930137e9d`
-- Path: `themes/weeb/wallpapers/04-teal-ninja.jpg`
-- Git blob SHA-1: `f83c296c9ce3c7a7b8df3b85689a70880e13edc7`
-- Source licence/credits: `themes/weeb/CREDITS.md` (CC0; AI-created artwork)
+## Trusted deployment
 
-The trusted local script fetches only this exact path, requires base64 and JPEG
-format, enforces size bounds, and recalculates the Git blob hash before any
-TV modification. There are no user-controlled URLs, remote code downloads,
-remote scripts, or unrestricted wallpaper operations.
+The same current local Termux agent uses
+`TVBRIDGE/v2 cleanyourtv_apply_theme`. It fetches the JSON from the exact
+successful `main` CI SHA, strictly validates allowed fields and takes a
+private launcher ThemeProvider backup before changing `config.json` and
+`theme_revision`. No wallpaper bytes are written in this mode. A failed write
+attempts byte-exact rollback; system packages, CEC, VPN, network settings and
+remote mappings are not changed.
 
-## Applying and rollback
+No new bootstrap is needed because this design uses only fields already
+accepted by the installed script. Any screenshot commit advances `main`;
+both required CI checks must be successful for the **current exact** SHA
+before the agent accepts an apply request.
 
-**Bootstrap required once for this new code path:** the previously installed
-agent accepts only no-wallpaper themes. Until the local code is explicitly
-updated, it will reject the new JSON and leave the existing v3.1 installed.
+## Real TV acceptance
 
-After local bootstrap, the same fixed `TVBRIDGE/v2 cleanyourtv_apply_theme`
-operation downloads the verified theme JSON from the exact CI-successful
-`main` commit and fetches the pinned CC0 JPEG. The official exported
-ThemeProvider writes only `wallpaper.jpg`, `config.json` and
-`theme_revision` after exact backups. A failure attempts rollback of all
-three files, preserving preexisting user data and launcher settings.
+1. CI `verify-preset` and `strict-read-only-bridge` pass on merged `main`.
+2. Bridge receipt confirms provider readback, HOME focus and unchanged disabled
+   packages; backup path is recorded.
+3. Fresh 1920×1080 screenshot: no anime illustration, true black background,
+   nine visible app tiles, icon-only header, no dock band or red glow.
+4. D-pad Right/Down navigate to adjacent tile and second row; focus remains
+   visible and no app gets launched inadvertently.
+5. Return to HOME and inspect result. Reboot is deliberately separate.
 
-No device package changes, firmware, root, network, HDMI-CEC, VPN or
-accessibility remapping are involved. No automatic reboot is performed.
+## Revert
 
-## Real-TV acceptance
+Restore previous launcher theme using the private backup created at apply
+time. Do not clear application data or disable the stock TV launcher.
 
-1. CI: both named checks pass for the exact `main` SHA.
-2. Successful bridge receipt includes wallpaper SHA-256 and backup path.
-3. Fresh 1920×1080 screenshot: actual anime artwork on black, no dock-glass
-   band, grid still visible, clock and Settings readable.
-4. D-pad Right, Down, Left, Up all preserve visible focus.
-5. If any issue appears, restore the preceding private theme backup.
-6. Physical remote/Home-after-app/reboot remain separate verification gates.
+## Upstream references
 
-## Reference
-
-- [Upstream theme manual](https://github.com/Gathin23/cleanyourtv/blob/v3.5.0/themes/README.md)
-- [Weeb theme image credits](https://github.com/Gathin23/cleanyourtv/blob/v3.5.0/themes/weeb/CREDITS.md)
+- [CleanYourTV v3.5.0 theme format](https://github.com/Gathin23/cleanyourtv/blob/v3.5.0/themes/README.md)
+- [CleanYourTV focus-style implementation](https://github.com/Gathin23/cleanyourtv/blob/v3.5.0/launcher/app/src/main/java/com/gathin/tvhome/GlassView.java)
