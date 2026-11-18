@@ -97,7 +97,8 @@ class ProviderTheme:
 
     def write(self, name, content):
         uri = self._uri(name)
-        if not isinstance(content, bytes) or not (0 < len(content) <= 512000):
+        if (not isinstance(content, bytes) or len(content) > 512000
+                or (len(content) == 0 and name != "theme_revision")):
             raise ProviderError("Invalid bounded theme payload")
         unique = uuid.uuid4().hex[:12]
         remote = "/data/local/tmp/cyt-boxy-" + unique + "-" + name
@@ -116,8 +117,10 @@ class ProviderTheme:
             if self.read(name) != content:
                 raise ProviderError("ThemeProvider readback mismatch after write")
         finally:
-            self._adb("shell", "rm -f " + remote, timeout=12)
-            source.unlink(missing_ok=True)
+            try:
+                self._adb("shell", "rm -f " + remote, timeout=12)
+            finally:
+                source.unlink(missing_ok=True)
 
     def delete(self, name):
         uri = self._uri(name)
