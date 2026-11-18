@@ -54,6 +54,66 @@ class SafetyTests(unittest.TestCase):
             cm.theme()
         generator.assert_not_called()
 
+    @mock.patch.object(cm.remote_preset, "fetch_verified_main",
+                       side_effect=cm.remote_preset.RemotePresetError("CI pending"))
+    @mock.patch.object(cm, "backup_theme")
+    @mock.patch.object(cm, "device_guard")
+    def test_remote_theme_must_be_verified_before_backing_up_or_writing(
+        self, guard, backup, fetch
+    ):
+        with self.assertRaisesRegex(cm.MaintenanceError, "nothing changed"):
+            cm.theme(update_from_main=True)
+        backup.assert_not_called()
+
+    def test_safe_remote_layout_change_is_accepted_without_new_executable(self):
+        import json
+        cfg = json.loads(cm.PRESET.read_text(encoding="utf-8"))
+        cfg["columns"] = 7
+        cfg["rows_below_dock"] = 2
+        raw = json.dumps(cfg).encode()
+        loaded, digest = cm.check_preset(raw)
+        self.assertEqual(loaded["columns"], 7)
+        self.assertEqual(len(digest), 64)
+
+    @mock.patch.object(cm, "verify_home_after_theme")
+    @mock.patch.object(cm, "restart_home_simple")
+    @mock.patch.object(cm, "ensure_safe_adb_restart")
+    @mock.patch.object(cm.remote_preset, "fetch_verified_main")
+    @mock.patch.object(cm, "ProviderTheme")
+    @mock.patch.object(cm, "backup_theme")
+    @mock.patch.object(cm, "adb")
+    @mock.patch.object(cm, "disabled_packages", return_value=["package:stock"])
+    @mock.patch.object(cm, "device_guard")
+    def test_remote_theme_applies_verified_bytes_and_saves_reboot_provenance(
+        self, guard, disabled, adb, backup, provider_cls, fetch, safe, restart, verify
+    ):
+        import json
+        cfg = json.loads(cm.PRESET.read_text(encoding="utf-8"))
+        cfg["columns"] = 7
+        raw = json.dumps(cfg, sort_keys=True).encode()
+        fetch.return_value = (raw, "f" * 40)
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "theme"
+            folder.mkdir()
+            (folder / "mode.txt").write_text("provider-only")
+            backup.return_value = folder
+            provider = provider_cls.return_value
+            provider.read.side_effect = lambda name: (
+                raw if name == "config.json" else
+                (_ for _ in ()).throw(AssertionError("unexpected file read")))
+            adb.side_effect = lambda *args, **kwargs: (
+                b"\x89PNG\r\n\x1a\n" + b"image"
+                if args[:3] == ("exec-out", "screencap", "-p") else ""
+            )
+            with mock.patch.object(cm, "RECEIPT", Path(temp) / "receipt.json"):
+                result = cm.theme(update_from_main=True)
+                receipt = json.loads((Path(temp) / "receipt.json").read_text())
+            self.assertEqual((folder / "applied-config.json").read_bytes(), raw)
+        provider.apply.assert_called_once_with(raw, wallpaper=None)
+        self.assertEqual(receipt["remote_main_sha"], "f" * 40)
+        self.assertIn("7 columns", result)
+        verify.assert_called_once()
+
     @mock.patch.object(cm, "device_guard")
     @mock.patch.object(cm, "adb")
     def test_reboot_refuses_without_theme_receipt(self, adb, guard):
@@ -81,9 +141,11 @@ class SafetyTests(unittest.TestCase):
     def test_partial_official_theme_failure_attempts_restore(
         self, guard, disabled, backup, source, apply, restore
     ):
-        with self.assertRaisesRegex(cm.MaintenanceError, "previous theme restored"):
-            cm.theme()
-        restore.assert_called_once_with(Path("/tmp/official-theme.sh"), Path("/tmp/backup"))
+        with tempfile.TemporaryDirectory() as temp:
+            backup.return_value = Path(temp)
+            with self.assertRaisesRegex(cm.MaintenanceError, "previous theme restored"):
+                cm.theme()
+            restore.assert_called_once_with(Path("/tmp/official-theme.sh"), Path(temp))
 
     @mock.patch.object(cm, "ProviderTheme")
     @mock.patch.object(cm, "run")
@@ -137,7 +199,7 @@ class SafetyTests(unittest.TestCase):
                     (Path(temp) / "receipt.json").read_text()
                 )
         self.assertIn("CLEAN_YOUR_TV_THEME_OK", output)
-        self.assertIn("AMOLED v3", output)
+        self.assertIn("Verified AMOLED grid", output)
         provider.apply.assert_called_once_with(cm.PRESET.read_bytes(), wallpaper=None)
         self.assertIsNone(receipt["wallpaper_sha256"])
         self.assertEqual(receipt["home"], cm.HOME)

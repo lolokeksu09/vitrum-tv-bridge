@@ -21,9 +21,11 @@ import time
 if __package__:
     from .cleanyourtv_provider_files import ProviderTheme, ProviderError
     from .boxy_minimal_wallpaper import generate as make_wallpaper
+    from . import cleanyourtv_remote_preset as remote_preset
 else:
     from cleanyourtv_provider_files import ProviderTheme, ProviderError
     from boxy_minimal_wallpaper import generate as make_wallpaper
+    import cleanyourtv_remote_preset as remote_preset
 
 MODEL = "4K Android TV Box"
 TV = "192.168.0.160:5555"
@@ -93,28 +95,13 @@ def device_guard():
     return {"model": model, "manufacturer": maker, "sdk": sdk}
 
 
-def check_preset():
+def check_preset(raw=None):
     try:
-        raw = PRESET.read_bytes()
-        cfg = json.loads(raw)
-    except (OSError, ValueError) as exc:
-        raise MaintenanceError("Official-format BOXY preset missing or invalid") from exc
-    if (cfg.get("dock_apps") != DOCK or cfg.get("columns") != 6
-            or cfg.get("rows_below_dock") != 2
-            or cfg.get("background_color") != "#000000"
-            or cfg.get("wallpaper") is not False
-            or cfg.get("single_row") is not False
-            or cfg.get("dock_row") is not True
-            or cfg.get("dock_band") is not False
-            or cfg.get("dock_title") is not False
-            or cfg.get("glass_style") != "rim"
-            or cfg.get("app_glow") is not False
-            or cfg.get("ambient_glow") is not False
-            or cfg.get("clock_glow") is not False
-            or cfg.get("sky_intensity") != 0):
-        raise MaintenanceError("Unexpected BOXY AMOLED v3 preset; refusing to apply")
-    return cfg, hashlib.sha256(raw).hexdigest()
-
+        data = PRESET.read_bytes() if raw is None else raw
+        cfg = remote_preset.validate(data)
+    except (OSError, remote_preset.RemotePresetError) as exc:
+        raise MaintenanceError("BOXY preset unsafe or unavailable: " + str(exc)) from exc
+    return cfg, hashlib.sha256(data).hexdigest()
 
 def home_focus():
     """Verify Home using the same WindowManager query as bridge focus_status.
@@ -445,15 +432,30 @@ def restore_theme(script: Path, folder: Path):
         theme_command(script, "--reset")
 
 
-def theme():
+def theme(*, update_from_main=False):
     device_guard()
-    expected, digest = check_preset()
+    remote_sha = None
+    if update_from_main:
+        try:
+            theme_bytes, remote_sha = remote_preset.fetch_verified_main()
+        except remote_preset.RemotePresetError as exc:
+            raise MaintenanceError(
+                "Could not verify latest theme from GitHub main; "
+                "nothing changed: " + str(exc)) from exc
+    else:
+        theme_bytes = PRESET.read_bytes()
+    expected, digest = check_preset(theme_bytes)
     # AMOLED v3 draws only the launcher base #000000. Do not generate, write,
     # remove or replace the user's existing wallpaper.jpg backup/asset.
     wallpaper = None
     wallpaper_sha256 = None
     before = disabled_packages()
     folder = backup_theme()
+    # Keep the exact verified theme bytes in the existing private backup.
+    # The repo working tree and running agent code are never updated by this.
+    applied_path = folder / "applied-config.json"
+    applied_path.write_bytes(theme_bytes)
+    applied_path.chmod(0o600)
     mode_path = folder / "mode.txt"
     mode = mode_path.read_text(encoding="utf-8").strip() if mode_path.exists() else "full"
     if mode not in ("full", "provider-only"):
@@ -472,10 +474,10 @@ def theme():
         # Mark before invoking a write: a partial ADB write still needs rollback.
         applied = True
         if provider is not None:
-            provider.apply(PRESET.read_bytes(), wallpaper=wallpaper)
+            provider.apply(theme_bytes, wallpaper=wallpaper)
             restart_home_simple()
             current = provider.read("config.json")
-            if current != PRESET.read_bytes():
+            if current != theme_bytes:
                 raise MaintenanceError("Provider-only config readback differs")
             if wallpaper is not None and (
                     hashlib.sha256(provider.read("wallpaper.jpg") or b"").hexdigest()
@@ -513,6 +515,7 @@ def theme():
         raise MaintenanceError(str(exc) + "; previous theme restored if it was changed") from exc
 
     receipt = {"method": mode, "time": dt.datetime.now(dt.timezone.utc).isoformat(),
+               "remote_main_sha": remote_sha,
                "theme_sha256": digest, "wallpaper_sha256": wallpaper_sha256,
                "backup": str(folder),
                "disabled_before": before, "home": HOME}
@@ -520,7 +523,10 @@ def theme():
     RECEIPT.chmod(0o600)
     return ("CLEAN_YOUR_TV_THEME_OK\n"
             "Pinned official theme mechanism applied; mode: " + mode + ".\n"
-            "AMOLED v3 six-column grid and no-wallpaper config verified by ThemeProvider readback.\n"
+            "Verified AMOLED grid / no-wallpaper config applied; layout " +
+            str(expected["columns"]) + " columns and " +
+            str(expected["rows_below_dock"]) + " rows.\n" +
+            ("CI-verified main: " + remote_sha[:12] + "\n" if remote_sha else "") +
             "HOME focused; system package states unchanged.\n"
             "Private backup: " + str(folder) + "\n"
             "Reboot not yet performed; use separate reboot_check.")
@@ -535,7 +541,19 @@ def reboot_check():
     now = dt.datetime.now(dt.timezone.utc)
     if not dt.timedelta() <= now - created <= dt.timedelta(hours=3):
         raise MaintenanceError("Theme receipt expired; no reboot")
-    cfg, digest = check_preset()
+    if receipt.get("remote_main_sha"):
+        # Reboot must validate the exact bytes originally applied, not a
+        # potentially newer main and not an old local checkout.
+        backup_dir = Path(receipt["backup"]).resolve()
+        root = BACKUPS.resolve()
+        if root not in backup_dir.parents or not backup_dir.is_dir():
+            raise MaintenanceError("Remote theme backup path invalid; no reboot")
+        saved = backup_dir / "applied-config.json"
+        if saved.is_symlink() or not saved.is_file():
+            raise MaintenanceError("Remote theme snapshot unavailable; no reboot")
+        cfg, digest = check_preset(saved.read_bytes())
+    else:
+        cfg, digest = check_preset()
     if receipt["theme_sha256"] != digest or receipt["home"] != HOME:
         raise MaintenanceError("Theme provenance changed; no reboot")
     if disabled_packages() != receipt["disabled_before"]:
@@ -582,7 +600,7 @@ def main():
     if operation == "probe":
         print(probe())
     elif operation == "theme":
-        print(theme())
+        print(theme(update_from_main=True))
     else:
         print(reboot_check())
 
