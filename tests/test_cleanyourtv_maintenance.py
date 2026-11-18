@@ -75,8 +75,9 @@ class SafetyTests(unittest.TestCase):
             def answer(*args, **kwargs):
                 if args[:3] == ("exec-out", "screencap", "-p"):
                     return b"\\x89PNG\\r\\n\\x1a\\n" + b"test"
-                if args[:3] == ("shell", "ls", "-d"):
-                    return ""
+                if len(args) == 2 and args[0] == "shell" and "CYT_LS_EXIT" in args[1]:
+                    return ("ls: /sdcard/Android/data/com.gathin.tvhome/files: "
+                            "Permission denied\\nCYT_LS_EXIT:1")
                 if args[:3] == ("exec-out", "content", "read"):
                     return b'{"columns":4}'
                 raise AssertionError("Unexpected ADB command: " + str(args))
@@ -85,6 +86,35 @@ class SafetyTests(unittest.TestCase):
                 with self.assertRaisesRegex(cm.MaintenanceError, "inaccessible for backup"):
                     cm.backup_theme()
         run.assert_not_called()
+
+    @mock.patch.object(cm, "adb")
+    def test_theme_directory_probe_reports_definite_absence(self, adb):
+        adb.return_value = (
+            "ls: /sdcard/Android/data/com.gathin.tvhome/files: "
+            "No such file or directory\\nCYT_LS_EXIT:1"
+        )
+        self.assertEqual(cm.remote_directory_state(), "absent")
+        self.assertEqual(adb.call_args.args[0], "shell")
+        self.assertEqual(len(adb.call_args.args), 2)
+        self.assertIn("ls -ld", adb.call_args.args[1])
+        self.assertIn("CYT_LS_EXIT", adb.call_args.args[1])
+
+    @mock.patch.object(cm, "adb")
+    def test_theme_directory_probe_refuses_scoped_storage_permission_denied(self, adb):
+        adb.return_value = (
+            "ls: /sdcard/Android/data/com.gathin.tvhome/files: "
+            "Permission denied\\nCYT_LS_EXIT:1"
+        )
+        self.assertEqual(cm.remote_directory_state(), "unknown")
+
+    @mock.patch.object(cm, "adb")
+    def test_theme_directory_probe_accepts_listing_only_on_exit_zero(self, adb):
+        adb.return_value = (
+            "drwxrwx--- 3 u0_a123 ext_data_rw 4096 ...\\nCYT_LS_EXIT:0"
+        )
+        self.assertEqual(cm.remote_directory_state(), "exists")
+        adb.return_value = "CYT_LS_EXIT:1"
+        self.assertEqual(cm.remote_directory_state(), "unknown")
 
     @mock.patch.object(cm, "run")
     def test_only_exact_fixed_cli_operations_are_allowed(self, run):

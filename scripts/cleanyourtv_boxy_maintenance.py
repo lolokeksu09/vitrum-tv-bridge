@@ -10,6 +10,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import re
 import shutil
@@ -127,10 +128,30 @@ def probe():
         "HOME focused: " + str(home_focus()),
         "Display: " + resolution + " / " + density,
         "Disabled packages: " + str(len(disabled)),
+        "Theme directory access: " + remote_directory_state(),
         "Unknown OEM candidates (READ ONLY):",
         *vendor_notes,
         "No package, settings or firmware changes.",
     ])
+
+
+def remote_directory_state():
+    """Distinguish a missing theme directory from Android 11 permission denial.
+
+    ADB shell accepts ONE remote command string, not a separated sh -c script.
+    This read-only probe reports a dedicated marker after the ls exit status.
+    """
+    command = ("LC_ALL=C ls -ld '" + REMOTE +
+               "' 2>&1; printf '\\nCYT_LS_EXIT:%s\\n' \"$?\"")
+    output = adb("shell", command, okay=True).strip()
+    match = re.search(r"CYT_LS_EXIT:(\d+)\b", output)
+    if match is None:
+        return "unknown"
+    if match.group(1) == "0":
+        return "exists"
+    if "No such file or directory" in output:
+        return "absent"
+    return "unknown"
 
 
 def backup_theme():
@@ -146,14 +167,14 @@ def backup_theme():
         adb("exec-out", "screencap", "-p", binary=True))
     try:
         # A directory may not exist if no theme has previously been applied.
-        existing = adb("shell", "ls", "-d", REMOTE, okay=True).strip()
+        existing = remote_directory_state()
         provider = adb("exec-out", "content", "read", "--uri", THEME_URI,
                        binary=True, okay=True)
         try:
             provider_config = json.loads(provider.decode("utf-8"))
         except (UnicodeDecodeError, ValueError):
             provider_config = None
-        if existing == REMOTE:
+        if existing == "exists":
             dest = folder / "existing"
             dest.mkdir()
             run(["adb", "-s", TV, "pull", REMOTE, str(dest)], timeout=80)
@@ -164,17 +185,19 @@ def backup_theme():
             configs = list(dest.rglob("config.json"))
             if provider_config is not None and not configs:
                 raise MaintenanceError("Existing theme config not preserved by ADB pull")
-        else:
-            # Avoid replacing a valid existing overlay that shell cannot access.
+        elif existing == "absent":
+            # Even if the shell sees no directory, a live ThemeProvider config
+            # means app data may be inaccessible; never overwrite it.
             if provider_config is not None:
                 raise MaintenanceError("Existing provider theme inaccessible for backup")
-            # Android/data may be inaccessible on OEM Android 11 builds:
-            # no arbitrary overwrites if the path cannot be confirmed absent.
-            status = adb("shell", "sh", "-c",
-                         "if [ -e '" + REMOTE + "' ]; then echo EXISTS; "
-                         "else echo ABSENT; fi", okay=True).strip()
-            if status != "ABSENT":
-                raise MaintenanceError("Cannot establish current theme state")
+        else:
+            if provider_config is not None:
+                raise MaintenanceError("Existing provider theme inaccessible for backup")
+            raise MaintenanceError(
+                "Theme directory access unresolved (Android scoped storage or "
+                "ADB shell denied); no changes. Inspect app-specific theme "
+                "storage before overwriting."
+            )
     except MaintenanceError:
         raise
     return folder
