@@ -32,6 +32,6 @@ jobs:
           assert cfg["rows_below_dock"] == 0
           assert cfg["dock_apps"] == ["com.google.android.youtube.tv", "com.vk.tv", "com.v2ray.ang", "com.tcl.browser"]
           assert "hidden_apps" not in cfg
-          assert all(isinstance(v, bool) for k,v in cfg.items() if k not in ("columns","rows_below_dock","background_color"))
+          assert all(isinstance(v, bool) for k,v in cfg.items() if k not in ("columns","rows_below_dock","background_color","dock_apps"))
           print('Preset JSON and non-destructive constraints verified.')
           PY
