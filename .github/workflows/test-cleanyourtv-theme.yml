@@ -27,19 +27,21 @@ jobs:
           import json
           from pathlib import Path
           cfg = json.loads(Path('presets/cleanyourtv-boxy/config.json').read_text())
-          assert cfg["columns"] == 4
+          assert cfg["columns"] == 6
           assert cfg["background_color"] == "#000000"
-          assert cfg["rows_below_dock"] == 1  # positions dock centrally, single_row hides lower grid
-          assert cfg["single_row"] is True
+          assert cfg["rows_below_dock"] == 2
+          assert cfg["single_row"] is False
+          assert cfg["dock_row"] is True
           assert cfg["dock_title"] is False
+          assert cfg["dock_band"] is False
+          assert cfg["app_glow"] is False
           assert cfg["ambient_glow"] is False
+          assert cfg["clock_glow"] is False
           assert cfg["sky_intensity"] == 0
-          assert cfg["wallpaper"] is True
-          assert cfg["show_greeting"] is True
-          assert cfg["icon_only_buttons"] is False
-          assert cfg["dock_opacity"] == 78
+          assert cfg["wallpaper"] is False
+          assert cfg["glass_style"] == "rim"
           assert cfg["dock_apps"] == ["com.google.android.youtube.tv", "com.vk.tv", "com.v2ray.ang", "com.tcl.browser"]
           assert "hidden_apps" not in cfg
           assert "vpn_app" not in cfg
-          print('OLED preset, horizontal app access and dock package invariants verified.')
+          print('AMOLED v3 six-column two-row grid, neutral focus and app availability validated.')
           PY
