@@ -173,13 +173,13 @@ def capture_theme_failure_state(folder: Path) -> str:
         resumed_pkg = match_resumed.group(1) if match_resumed else "unknown"
         (folder / "focus-failed-before-rollback.txt").write_text(
             "foreground=" + foreground + "\nresumed=" + resumed_pkg +
-            "\nprocess=" + ("running" if _re.fullmatch(r"\\d+(?:\\s+\\d+)*", pid) else "missing") +
+            "\nprocess=" + ("running" if _re.fullmatch(r"\d+(?:\s+\d+)*", pid) else "missing") +
             "\n", encoding="utf-8")
         shot = adb("exec-out", "screencap", "-p", timeout=25, binary=True)
         if isinstance(shot, bytes) and shot:
             (folder / "screen-failed-before-rollback.png").write_bytes(shot)
         return ("foreground=" + foreground + ", resumed=" + resumed_pkg +
-                ", process=" + ("running" if pid.isdigit() else "missing"))
+                ", process=" + ("running" if _re.fullmatch(r"\d+(?:\s+\d+)*", pid) else "missing"))
     except (MaintenanceError, OSError, ValueError):
         return "foreground diagnostics unavailable"
 
