@@ -348,7 +348,7 @@ def invoke_cleanyourtv_maintenance(device, action):
     command = [sys.executable, str(script), action]
     try:
         proc = subprocess.run(command, capture_output=True, text=True,
-                              errors="replace", timeout=360, check=False)
+                              errors="replace", timeout=960, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BridgeError("CleanYourTV maintenance command unavailable or timed out") from exc
     if proc.returncode:
