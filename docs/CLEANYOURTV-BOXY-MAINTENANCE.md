@@ -30,6 +30,27 @@ git -C ~/vitrum-tv-bridge pull --ff-only
 python ~/vitrum-tv-bridge/tv_bridge_v2.py --watch --allow-control --allow-screenshots --allow-maintenance --allow-reboot
 ```
 
+### Android TV 11 scoped-storage fallback
+
+On BOXY, Android may deny `adb shell` access to
+`/sdcard/Android/data/com.gathin.tvhome/files` even though CleanYourTV can
+read its own files. In that case the maintenance helper **does not** call
+`tools/theme.sh`, because that official full-theme operation removes the
+existing `wallpaper.jpg` and `wallpapers/` collection.
+
+Instead, it invokes the **official** `com.gathin.tvhome.theme` ContentProvider
+(defined in upstream `ThemeProvider.java`, and used by `tools/theme.sh`)
+to back up the previous `config.json` and `theme_revision` as private files
+and then write only those same two files. It checks content by reading it back
+and uses the pinned upstream `theme_restart.py` helper to restore the launcher
+and any enabled accessibility key helpers.
+
+The fallback **never lists or deletes private wallpapers**. If the provider
+cannot read an existing file or determine whether it is absent, it stops
+before writing. If a partially applied update fails, it restores the
+previous config and revision exactly (or deletes just newly created ones).
+The complete backup remains in `~/cleanyourtv-backups/theme-*/`.
+
 The theme action clones the official public repo and provisions a Python venv in
 `~/.cache/cleanyourtv-official-v3.5.0` on the **phone**, not the TV. For Termux,
 `python3`, `git`, `adb` and `pip` must be installed. Python packages must be
