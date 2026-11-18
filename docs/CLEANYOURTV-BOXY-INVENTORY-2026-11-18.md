@@ -8,7 +8,7 @@ Device: `4K Android TV Box` / `SkyworthDigital` / `HP44H` / SDK 30.
 
 - 104 packages: 96 system, 8 user; 11 disabled before any additional cleanup.
 - Current HOME resolves to `com.gathin.tvhome/.MainActivity`.
-- Owner reports **Wi-Fi** as the TV's current Internet connection, rather than USB Ethernet.
+- Owner confirms: the BOXY receives Internet from the router over **Wi-Fi**; no USB peripherals are connected to the box. A USB cable connects the BOXY to the television (likely power; its exact purpose was not independently verified). **No USB-Ethernet adapter is in use.**
 - User-provided TV screenshot shows the existing dock, from left to right:
   YouTube, VK Видео, v2rayNG, BrowseHere.
 - This is a read-only analysis of the supplied report and screenshot; no new
