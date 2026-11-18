@@ -1,0 +1,27 @@
+name: BOXY CleanYourTV HOME safety checks
+
+on:
+  pull_request:
+    paths:
+      - scripts/switch-cleanyourtv-home.sh
+      - tests/test-switch-cleanyourtv-home.sh
+      - .github/workflows/test-cleanyourtv-home.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/switch-cleanyourtv-home.sh
+      - tests/test-switch-cleanyourtv-home.sh
+      - .github/workflows/test-cleanyourtv-home.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check syntax
+        run: bash -n scripts/switch-cleanyourtv-home.sh && bash -n tests/test-switch-cleanyourtv-home.sh
+      - name: Test successful handover, unknown package and rollback
+        run: bash tests/test-switch-cleanyourtv-home.sh
