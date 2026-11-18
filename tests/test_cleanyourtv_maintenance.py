@@ -85,14 +85,15 @@ class SafetyTests(unittest.TestCase):
         provider.return_value.backup_files.assert_called_once()
         run.assert_not_called()
 
-    @mock.patch.object(cm, "restart_official_theme_home")
+    @mock.patch.object(cm, "restart_home_simple")
+    @mock.patch.object(cm, "ensure_safe_adb_restart")
     @mock.patch.object(cm, "ProviderTheme")
     @mock.patch.object(cm, "prepare_upstream", return_value=Path("/tmp/official-theme.sh"))
     @mock.patch.object(cm, "backup_theme")
     @mock.patch.object(cm, "disabled_packages", return_value=["package:stock"])
     @mock.patch.object(cm, "device_guard")
     def test_provider_theme_partial_failure_restores_prior_config_and_revision(
-        self, guard, disabled, backup, source, provider, restart
+        self, guard, disabled, backup, source, provider, safe, restart
     ):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
