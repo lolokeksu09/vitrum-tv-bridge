@@ -5,13 +5,13 @@ configuration in the exact JSON format documented by upstream
 [Gathin23/cleanyourtv themes](https://github.com/Gathin23/cleanyourtv/blob/main/themes/README.md).
 
 The preset:
-- retains the currently configured `dock_apps` (it deliberately omits the
-  `dock_apps` key, as actual app packages/order must come from the BOXY);
+- pins exactly the four installed dock apps verified on the user's TV screenshot
+  and package inventory: YouTube, VK Видео, v2rayNG, BrowseHere;
 - uses the upstream four-column default, black background, glass dock,
   visible Inputs/Network controls, and no animated wallpaper;
 - does not require a new APK and does not change system HOME or packages.
 
-**Do not apply until package inventory and dock choices are reviewed.**
+**Inventory and current dock choice are now verified.** Application to the real TV remains opt-in, after a local backup of the current theme.
 
 For application, use the upstream `tools/theme.sh` from a clone of the
 official repository (with its documented Python virtual environment),
