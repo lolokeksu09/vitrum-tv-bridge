@@ -72,5 +72,53 @@ class FocusStatusTests(unittest.TestCase):
         ])
 
 
+class ADBConnectionRecoveryTests(unittest.TestCase):
+    DEVICE = "192.168.0.160:5555"
+
+    @mock.patch.object(bridge, "execute")
+    @mock.patch.object(bridge, "gh", return_value="lolokeksu09")
+    def test_reconnects_known_tcp_device_after_lost_state(self, gh, execute):
+        execute.side_effect = [
+            ("", 1),
+            ("connected to 192.168.0.160:5555", 0),
+            ("device", 0),
+        ]
+        bridge.verify_access(self.DEVICE)
+        self.assertEqual([c.args[0] for c in execute.call_args_list], [
+            ["adb", "-s", self.DEVICE, "get-state"],
+            ["adb", "connect", self.DEVICE],
+            ["adb", "-s", self.DEVICE, "get-state"],
+        ])
+
+    @mock.patch.object(bridge, "execute")
+    @mock.patch.object(bridge, "gh", return_value="lolokeksu09")
+    def test_does_not_reconnect_when_already_online(self, gh, execute):
+        execute.return_value = ("device", 0)
+        bridge.verify_access(self.DEVICE)
+        execute.assert_called_once_with(
+            ["adb", "-s", self.DEVICE, "get-state"], timeout=8,
+            allow_failure=True)
+
+    @mock.patch.object(bridge, "execute")
+    @mock.patch.object(bridge, "gh", return_value="lolokeksu09")
+    def test_offline_after_reconnect_reports_actionable_error(self, gh, execute):
+        execute.side_effect = [
+            ("", 1),
+            ("failed to connect to 192.168.0.160:5555", 1),
+            ("", 1),
+        ]
+        with self.assertRaisesRegex(bridge.BridgeError, "adb connect"):
+            bridge.verify_access(self.DEVICE)
+        self.assertEqual(len(execute.call_args_list), 3)
+
+    @mock.patch.object(bridge, "execute")
+    @mock.patch.object(bridge, "gh", return_value="unexpected-owner")
+    def test_wrong_owner_never_touches_adb(self, gh, execute):
+        with self.assertRaisesRegex(bridge.BridgeError, "owner"):
+            bridge.verify_access(self.DEVICE)
+        execute.assert_not_called()
+
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -42,9 +42,28 @@ def verify_access(device):
     login = gh("api", "user", "--jq", ".login").strip()
     if login != OWNER:
         raise BridgeError("GitHub login is not the repository owner")
-    state, _ = execute(["adb", "-s", device, "get-state"], timeout=8)
-    if state.strip() != "device":
-        raise BridgeError("ADB device is not online")
+    state, code = execute(["adb", "-s", device, "get-state"],
+                          timeout=8, allow_failure=True)
+    if code or state.strip() != "device":
+        # ADB's selected TCP device is often forgotten when Termux/adb restarts.
+        # Try one ordinary connection; never change adbd mode or open port 5555.
+        if re.fullmatch(r"[A-Za-z0-9.-]+:[0-9]{2,5}", device):
+            answer, _ = execute(["adb", "connect", device],
+                                timeout=12, allow_failure=True)
+            state, code = execute(["adb", "-s", device, "get-state"],
+                                  timeout=8, allow_failure=True)
+            if code or state.strip() != "device":
+                detail = (answer.strip() or state.strip() or "no response")[:180]
+                raise BridgeError(
+                    "ADB still offline after adb connect " + device + ": " + detail +
+                    ". Check BOXY power/Wi-Fi, network debugging, and ADB authorization. "
+                    "Do not disable the stock Home while ADB is offline."
+                )
+        else:
+            raise BridgeError(
+                "ADB device " + device +
+                " is offline. Reconnect or authorize it before starting the bridge."
+            )
     print("Ready: GitHub owner authenticated; local ADB device connected.")
 
 
