@@ -110,6 +110,34 @@ def home_focus():
                if "mCurrentFocus=" in line)
 
 
+def verify_home_after_theme(*, pause=time.sleep, tries=8):
+    """Wait for a real foreground Home after Android TV activity restart.
+
+    ADB reports app start before WindowManager necessarily reports focused
+    activity. Reassert Home between checks if a dream/transition is foreground.
+    Never accept a wrong default HOME and never disable the stock launcher.
+    """
+    if tries < 1 or tries > 12:
+        raise MaintenanceError("Invalid Home verification retry limit")
+    if home_resolver() != HOME:
+        raise MaintenanceError("CleanYourTV is no longer default HOME")
+    for attempt in range(tries):
+        if home_focus():
+            if home_resolver() == HOME:
+                return
+            raise MaintenanceError("CleanYourTV default HOME changed while verifying")
+        if attempt == tries - 1:
+            break
+        if home_resolver() != HOME:
+            raise MaintenanceError("CleanYourTV is no longer default HOME")
+        if attempt % 2 == 0:
+            adb("shell", "input", "keyevent", "3")
+        pause(2)
+    raise MaintenanceError(
+        "CleanYourTV foreground HOME not confirmed after repeated checks"
+    )
+
+
 def probe():
     state = device_guard()
     disabled = disabled_packages()
@@ -323,9 +351,7 @@ def theme():
         if json.loads(current.decode("utf-8")) != expected:
             raise MaintenanceError("ThemeProvider readback did not match requested preset")
         adb("shell", "input", "keyevent", "3")
-        time.sleep(2)
-        if home_resolver() != HOME or not home_focus():
-            raise MaintenanceError("CleanYourTV no longer active HOME")
+        verify_home_after_theme()
         if disabled_packages() != before:
             raise MaintenanceError("Unexpected change in disabled packages")
         after = adb("exec-out", "screencap", "-p", binary=True)
