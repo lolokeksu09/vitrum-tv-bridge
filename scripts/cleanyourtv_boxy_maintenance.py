@@ -147,7 +147,7 @@ def backup_theme():
     try:
         # A directory may not exist if no theme has previously been applied.
         existing = adb("shell", "ls", "-d", REMOTE, okay=True).strip()
-        if REMOTE in existing:
+        if existing == REMOTE:
             dest = folder / "existing"
             dest.mkdir()
             run(["adb", "-s", TV, "pull", REMOTE, str(dest)], timeout=80)
@@ -173,13 +173,19 @@ def prepare_upstream():
     commit = run(["git", "-C", str(OFFICIAL), "rev-parse", "HEAD"]).strip()
     if commit != SHA:
         raise MaintenanceError("Upstream official v3.5.0 pin mismatch; refusing theme")
+    # A pristine commit hash is not enough if someone edited local tracked files.
+    dirty = run(["git", "-C", str(OFFICIAL), "diff", "--name-only",
+                 "HEAD", "--", "tools/theme.sh"]).strip()
+    official_script = OFFICIAL / "tools/theme.sh"
+    if dirty or official_script.is_symlink() or not official_script.is_file():
+        raise MaintenanceError("Local official theme.sh is modified or unavailable")
     exe = OFFICIAL / "tools/venv/bin/python"
     if not exe.is_file():
         run([sys.executable, "-m", "venv", str(OFFICIAL / "tools/venv")], timeout=80)
-        run([str(exe), "-m", "pip", "install", "-r",
-             str(OFFICIAL / "tools/requirements.txt"),
-             "--disable-pip-version-check"], timeout=180)
-    return OFFICIAL / "tools/theme.sh"
+    run([str(exe), "-m", "pip", "install", "-r",
+         str(OFFICIAL / "tools/requirements.txt"),
+         "--disable-pip-version-check"], timeout=180)
+    return official_script
 
 
 def theme_command(script: Path, action: str, timeout=210):
