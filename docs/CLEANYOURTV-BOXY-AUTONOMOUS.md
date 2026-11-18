@@ -57,7 +57,9 @@ No agent restart is needed: the existing v2 bridge launches
 **After installing the updated theme script once, no further `git pull` is necessary for
 changes confined to the permitted CleanYourTV theme JSON and the one fixed,
 SHA-verified anime wallpaper. This **new anime feature requires an additional
-one-time bootstrap** because the previously installed script rejects wallpaper.** Updates to agent
+one-time bootstrap** because the previously installed script rejects wallpaper.
+
+Updates to agent
 code, expanded permissions or new operations still require explicit local
 installation; the agent is deliberately not a remote arbitrary-code executor.
 
