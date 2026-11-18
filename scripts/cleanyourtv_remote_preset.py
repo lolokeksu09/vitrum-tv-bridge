@@ -6,12 +6,19 @@ remote layout changes to JSON values understood by the installed launcher.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
 import subprocess
 
 REPO = "lolokeksu09/vitrum-tv-bridge"
 PRESET_PATH = "presets/cleanyourtv-boxy/config.json"
+# Original CC0 anime artwork from the fixed upstream CleanYourTV v3.5.0 tree.
+# This is data only, never executable code or a user-supplied URL.
+ART_REPO = "Gathin23/cleanyourtv"
+ART_REF = "d11bd68c9ac45b2fb38480941586d17930137e9d"
+ART_PATH = "themes/weeb/wallpapers/04-teal-ninja.jpg"
+ART_GIT_SHA = "f83c296c9ce3c7a7b8df3b85689a70880e13edc7"
 CHECK_RUNS = {"verify-preset", "strict-read-only-bridge"}
 SHA = re.compile(r"[0-9a-f]{40}", re.ASCII)
 EXPECTED_DOCK = [
@@ -45,7 +52,7 @@ class RemotePresetError(Exception):
     pass
 
 
-def gh_json(path: str):
+def gh_json(path: str, max_chars: int = 128_000):
     try:
         proc = subprocess.run(["gh", "api", path], capture_output=True,
                               text=True, errors="replace", timeout=35, check=False)
@@ -53,7 +60,7 @@ def gh_json(path: str):
         raise RemotePresetError("GitHub API unavailable; no changes") from exc
     if proc.returncode:
         raise RemotePresetError("GitHub API declined verified preset lookup; no changes")
-    if len(proc.stdout) > 128_000:
+    if len(proc.stdout) > max_chars:
         raise RemotePresetError("GitHub response unexpectedly large")
     try:
         return json.loads(proc.stdout)
@@ -81,8 +88,8 @@ def validate(raw: bytes) -> dict:
     for key, options in STRING_KEYS.items():
         if type(cfg[key]) is not str or cfg[key] not in options:
             raise RemotePresetError("Unsupported theme style field: " + key)
-    if cfg["wallpaper"] is not False or cfg["sky_intensity"] != 0:
-        raise RemotePresetError("Autonomous mode allows only flat-black no-wallpaper themes")
+    if cfg["sky_intensity"] != 0:
+        raise RemotePresetError("Autonomous mode requires an AMOLED-black base")
     if cfg["ambient_glow"] or cfg["app_glow"] or cfg["clock_glow"]:
         raise RemotePresetError("Autonomous mode cannot restore colored glow")
     if cfg["background_color"] != "#000000":
@@ -125,3 +132,30 @@ def fetch_verified_main() -> tuple[bytes, str]:
         raise RemotePresetError("Invalid base64 theme content") from exc
     validate(raw)
     return raw, sha
+
+
+def fetch_verified_anime_wallpaper() -> bytes:
+    """Only the fixed upstream CC0 JPEG, verified by its Git blob SHA-1.
+
+    No remote file path, URL, asset name or executable code is configurable by
+    a GitHub Issue or theme JSON. Preserve the downloaded bytes unchanged.
+    """
+    entry = gh_json("repos/" + ART_REPO + "/contents/" + ART_PATH +
+                    "?ref=" + ART_REF, max_chars=500_000)
+    if (not isinstance(entry, dict) or entry.get("sha") != ART_GIT_SHA or
+            entry.get("encoding") != "base64"):
+        raise RemotePresetError("Pinned anime artwork provenance invalid; no changes")
+    payload = entry.get("content")
+    if type(payload) is not str or not 0 < len(payload) < 450_000:
+        raise RemotePresetError("Anime artwork payload missing or oversized")
+    try:
+        raw = base64.b64decode("".join(payload.splitlines()), validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise RemotePresetError("Anime artwork has invalid base64") from exc
+    if not 0 < len(raw) <= 500_000 or not raw.startswith(b"\xff\xd8\xff"):
+        raise RemotePresetError("Anime artwork must be a bounded JPEG")
+    git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") +
+                            b"\0" + raw).hexdigest()
+    if git_blob != ART_GIT_SHA:
+        raise RemotePresetError("Anime artwork content SHA mismatch; no changes")
+    return raw

@@ -9,7 +9,7 @@ official `Gathin23/cleanyourtv` v3.5.0 source pinned at commit
 | GitHub issue title | JSON `op` | Local opt-in | Behavior |
 |---|---|---|---|
 | `TVBRIDGE/v2 cleanyourtv_probe` | `cleanyourtv_probe` | `--allow-maintenance` | Reads BOXY model, HOME, display, count of disabled packages and limited OEM package information |
-| `TVBRIDGE/v2 cleanyourtv_apply_theme` | `cleanyourtv_apply_theme` | `--allow-maintenance` | Backs up the three launcher-owned theme files through the official ThemeProvider, applies the local AMOLED v3 grid configuration without rewriting wallpaper, verifies Home and package states and rolls back on errors |
+| `TVBRIDGE/v2 cleanyourtv_apply_theme` | `cleanyourtv_apply_theme` | `--allow-maintenance` | Backs up the three launcher-owned theme files through the official ThemeProvider, applies the CI-verified AMOLED grid theme and, when enabled, one pinned SHA-verified CC0 anime wallpaper, verifies Home and package states and rolls back on errors |
 | `TVBRIDGE/v2 cleanyourtv_reboot_check` | `cleanyourtv_reboot_check` | `--allow-maintenance --allow-reboot` | Requires fresh verified theme receipt, reboots BOXY and checks Home and disabled packages after ADB reconnect |
 
 All issues must be posted by the authenticated owner and be younger than one hour, with
@@ -40,8 +40,9 @@ the upstream helper's unrestricted theme-reset path. No `cryptography`,
 
 Before writing, the agent saves the exact previous **`wallpaper.jpg`,
 `config.json`, `theme_revision`** or records that each file did not exist.
-AMOLED v3 uses `wallpaper=false`: the old image remains backed up and on disk
-but is not displayed and is **not written or deleted** during deployment.
+AMOLED Anime enables one fixed upstream CC0 JPEG, validated against the pinned
+Git blob SHA before any TV change. The previous wallpaper is backed up
+byte-for-byte before the new one is written; failures attempt rollback.
 The existing `wallpapers/` collection is also never touched. Other
 applications, settings, pairing, HDMI-CEC and VPN profiles are unchanged.
 
@@ -57,7 +58,7 @@ Private backup directory:
 `~/cleanyourtv-backups/theme-<UTC timestamp>/`. It also contains
 the before/after screenshot and old disabled-package list.
 
-The current AMOLED v3 layout keeps the four pinned dock apps first and
+The AMOLED Anime layout keeps the four pinned dock apps first and
 shows a **six-column vertical grid, with two additional visible rows**.
 Further apps remain available through normal D-pad scrolling.
 Full description and constraints:

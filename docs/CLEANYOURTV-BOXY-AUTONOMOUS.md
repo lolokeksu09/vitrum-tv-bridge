@@ -6,7 +6,10 @@ The owner does not want to run `git pull` for every CleanYourTV appearance chang
 
 Once the installed Termux maintenance script is updated, the existing authorized
 `TVBRIDGE/v2 cleanyourtv_apply_theme` request directly downloads the
-**configuration JSON only** from the current private GitHub `main` commit.
+**configuration JSON** from the current private GitHub `main` commit.
+For the anime preset, the installed trusted script additionally retrieves one
+**hard-coded SHA-verified CC0 JPEG** from the pinned upstream CleanYourTV v3.5.0
+commit. The URL/path cannot be influenced by theme JSON or remote requests.
 It does **not** pull, checkout, update or execute remote source code.
 
 A new design release is deployed by: updating and merging the theme configuration,
@@ -18,18 +21,20 @@ its result and verifying a live screenshot and D-pad navigation through the agen
 - The exact branch SHA is resolved first and used to fetch `config.json`.
 - Both named GitHub check jobs, `verify-preset` and
   `strict-read-only-bridge`, must report completed/success for that commit.
-- A strict allowlist limits which theme keys may change. BOXY must keep a flat
-  black background, no wallpaper, no colored glow, visible vertical app grid,
-  and the existing four known pinned app packages. Values and types are bounded.
+- A strict allowlist limits which theme keys may change. BOXY must keep
+  an AMOLED-black base, no coloured glow, a visible multirow grid, and the
+  four known dock favourites. Values and types are bounded. Wallpaper can be
+  enabled only with the separately pinned anime JPEG, never an arbitrary image.
   Unknown fields are rejected, including package removal, remote shell,
   accessibility/input remapping, network or VPN settings.
 - The trusted local maintenance code performs the same device/Home checks,
   private backup, official ThemeProvider readback, foreground verification
-  and rollback as before. Only `config.json` and `theme_revision` are
-  rewritten; a previously installed `wallpaper.jpg` is preserved.
+  and rollback as before. A no-wallpaper theme writes only `config.json` and
+  `theme_revision`; the anime theme writes only the three allowlisted launcher
+  files, including `wallpaper.jpg` after backing up its exact previous bytes.
 - If GitHub API/CI/ADB is unavailable, the operation **fails closed**. Never
   silently fall back to applying an out-of-date local config.
-- The exact applied JSON is saved in the local private backup, allowing
+- The exact applied JSON and prior wallpaper bytes are saved in the local private backup, allowing
   reboot verification even if `main` changes later.
 - No automatic package disable, data deletion, firmware flash, TV power action,
   root, screenshot posting or reboot is introduced.
@@ -48,10 +53,13 @@ git -C ~/vitrum-tv-bridge pull --ff-only
 No agent restart is needed: the existing v2 bridge launches
 `scripts/cleanyourtv_boxy_maintenance.py` fresh for each approved request.
 
-**After this one-time bootstrap, no further `git pull` is necessary for
-changes confined to the permitted CleanYourTV theme JSON.** Updates to agent
-code, expanded permissions or new operations still require explicit local
-installation; the agent is deliberately not a remote arbitrary-code executor.
+**The anime feature requires one new, one-time local bootstrap.** The
+previously installed script correctly rejects wallpaper-enabled themes. After
+updating the trusted local script, changes confined to the permitted JSON
+fields and the same pinned artwork no longer require another `git pull`.
+
+Updates to agent code, expanded permissions or new operations still require
+explicit local installation; the agent is not an arbitrary-code executor.
 
 The Termux agent must be running with `--watch --allow-maintenance` to
 process remote requests. Its launch flags control whether commands can run;
@@ -65,7 +73,7 @@ test focus and all visible rows, and verify Home after launching an app.
 
 To restore an earlier theme, use the retained local private backup under
 `~/cleanyourtv-backups/theme-<UTC timestamp>/`. Errors attempt an automatic
-byte-exact rollback of the previous config and revision.
+byte-exact rollback of the previous config, revision and wallpaper.
 
 The local Home/ADB connection is not a cloud service. If the phone sleeps, Termux
 stops or Wi-Fi/ADB disconnects, autonomous application pauses until the

@@ -1,5 +1,6 @@
 """Security boundary for automatic CleanYourTV theme-only GitHub synchronization."""
 import base64
+import hashlib
 import json
 import unittest
 from unittest import mock
@@ -37,7 +38,7 @@ class RemoteThemeTests(unittest.TestCase):
 
     def test_refuses_missing_grid_or_colored_wallpaper(self):
         for name, value in [
-            ("wallpaper", True), ("single_row", True), ("rows_below_dock", 0),
+            ("wallpaper", "not-bool"), ("single_row", True), ("rows_below_dock", 0),
             ("background_color", "#220000"), ("ambient_glow", True),
             ("app_glow", True), ("columns", 2),
         ]:
@@ -118,6 +119,40 @@ class RemoteThemeTests(unittest.TestCase):
         with self.assertRaises(remote.RemotePresetError):
             remote.fetch_verified_main()
 
+
+
+    def test_pinned_anime_wallpaper_is_verified_by_git_blob_hash(self):
+        jpg = b"\xff\xd8\xff" + b"sample safe pinned picture" * 3
+        sha = hashlib.sha1(b"blob " + str(len(jpg)).encode("ascii") +
+                           b"\0" + jpg).hexdigest()
+        with mock.patch.object(remote, "ART_GIT_SHA", sha), \
+             mock.patch.object(remote, "gh_json", return_value={
+                 "sha": sha, "encoding": "base64",
+                 "content": base64.b64encode(jpg).decode("ascii"),
+             }) as fetch:
+            self.assertEqual(remote.fetch_verified_anime_wallpaper(), jpg)
+            self.assertIn("?ref=" + remote.ART_REF, fetch.call_args.args[0])
+            self.assertEqual(fetch.call_args.kwargs["max_chars"], 500_000)
+
+    def test_anime_wallpaper_sha_mismatch_blocks_device_write(self):
+        jpg = b"\xff\xd8\xff" + b"untrusted content"
+        with mock.patch.object(remote, "gh_json", return_value={
+            "sha": remote.ART_GIT_SHA, "encoding": "base64",
+            "content": base64.b64encode(jpg).decode("ascii"),
+        }):
+            with self.assertRaisesRegex(remote.RemotePresetError, "SHA mismatch"):
+                remote.fetch_verified_anime_wallpaper()
+
+    def test_anime_wallpaper_source_or_encoding_mismatch_is_rejected(self):
+        for entry in (
+            {"sha": "0" * 40, "encoding": "base64", "content": "YWJj"},
+            {"sha": remote.ART_GIT_SHA, "encoding": "utf-8", "content": "abc"},
+            {"sha": remote.ART_GIT_SHA, "encoding": "base64", "content": "!!!"},
+        ):
+            with self.subTest(entry=entry), \
+                 mock.patch.object(remote, "gh_json", return_value=entry), \
+                 self.assertRaises(remote.RemotePresetError):
+                remote.fetch_verified_anime_wallpaper()
 
 if __name__ == "__main__":
     unittest.main()

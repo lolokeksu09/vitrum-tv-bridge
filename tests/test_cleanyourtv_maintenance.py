@@ -1,4 +1,5 @@
 """Guardrails for fixed CleanYourTV BOXY maintenance actions; no real TV commands."""
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,6 +9,13 @@ from scripts import cleanyourtv_boxy_maintenance as cm
 
 
 class SafetyTests(unittest.TestCase):
+    def setUp(self):
+        self.wallpaper = b"\xff\xd8\xff" + b"trusted mock image"
+        patch = mock.patch.object(cm.remote_preset, "fetch_verified_anime_wallpaper",
+                                  return_value=self.wallpaper)
+        patch.start()
+        self.addCleanup(patch.stop)
+
     def test_preset_is_amoled_v3_compact_grid_without_glow(self):
         config, digest = cm.check_preset()
         self.assertEqual(config["dock_apps"], cm.DOCK)
@@ -22,8 +30,17 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(config["app_glow"])
         self.assertFalse(config["clock_glow"])
         self.assertEqual(config["glass_style"], "rim")
-        self.assertFalse(config["wallpaper"])
+        self.assertTrue(config["wallpaper"])
         self.assertEqual(len(digest), 64)
+
+    @mock.patch.object(cm, "backup_theme")
+    @mock.patch.object(cm, "device_guard")
+    def test_anime_art_download_failure_leaves_device_unchanged(self, guard, backup):
+        with mock.patch.object(cm.remote_preset, "fetch_verified_anime_wallpaper",
+                               side_effect=cm.remote_preset.RemotePresetError("offline")):
+            with self.assertRaisesRegex(cm.MaintenanceError, "nothing changed"):
+                cm.theme()
+        backup.assert_not_called()
 
     @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
     @mock.patch.object(cm, "adb")
@@ -100,6 +117,7 @@ class SafetyTests(unittest.TestCase):
             provider = provider_cls.return_value
             provider.read.side_effect = lambda name: (
                 raw if name == "config.json" else
+                self.wallpaper if name == "wallpaper.jpg" else
                 (_ for _ in ()).throw(AssertionError("unexpected file read")))
             adb.side_effect = lambda *args, **kwargs: (
                 b"\x89PNG\r\n\x1a\n" + b"image"
@@ -109,7 +127,7 @@ class SafetyTests(unittest.TestCase):
                 result = cm.theme(update_from_main=True)
                 receipt = json.loads((Path(temp) / "receipt.json").read_text())
             self.assertEqual((folder / "applied-config.json").read_bytes(), raw)
-        provider.apply.assert_called_once_with(raw, wallpaper=None)
+        provider.apply.assert_called_once_with(raw, wallpaper=self.wallpaper)
         self.assertEqual(receipt["remote_main_sha"], "f" * 40)
         self.assertIn("7 columns", result)
         verify.assert_called_once()
@@ -176,7 +194,7 @@ class SafetyTests(unittest.TestCase):
     @mock.patch.object(cm, "adb")
     @mock.patch.object(cm, "disabled_packages", return_value=["package:stock"])
     @mock.patch.object(cm, "device_guard")
-    def test_amoled_v3_applies_config_only_without_modifying_old_wallpaper(
+    def test_anime_theme_applies_pinned_wallpaper_with_readback(
         self, guard, disabled, adb, backup, provider_cls, safe, restart, verify
     ):
         with tempfile.TemporaryDirectory() as temp:
@@ -187,7 +205,8 @@ class SafetyTests(unittest.TestCase):
             provider = provider_cls.return_value
             provider.read.side_effect = lambda name: (
                 cm.PRESET.read_bytes() if name == "config.json"
-                else (_ for _ in ()).throw(AssertionError("Unexpected wallpaper read"))
+                else self.wallpaper if name == "wallpaper.jpg"
+                else (_ for _ in ()).throw(AssertionError("Unexpected file read"))
             )
             adb.side_effect = lambda *args, **kwargs: (
                 b"\x89PNG\r\n\x1a\n" + b"image"
@@ -200,8 +219,8 @@ class SafetyTests(unittest.TestCase):
                 )
         self.assertIn("CLEAN_YOUR_TV_THEME_OK", output)
         self.assertIn("Verified AMOLED grid", output)
-        provider.apply.assert_called_once_with(cm.PRESET.read_bytes(), wallpaper=None)
-        self.assertIsNone(receipt["wallpaper_sha256"])
+        provider.apply.assert_called_once_with(cm.PRESET.read_bytes(), wallpaper=self.wallpaper)
+        self.assertEqual(receipt["wallpaper_sha256"], hashlib.sha256(self.wallpaper).hexdigest())
         self.assertEqual(receipt["home"], cm.HOME)
         safe.assert_called_once()
         restart.assert_called_once()

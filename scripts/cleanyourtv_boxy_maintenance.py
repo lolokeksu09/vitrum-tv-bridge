@@ -445,10 +445,18 @@ def theme(*, update_from_main=False):
     else:
         theme_bytes = PRESET.read_bytes()
     expected, digest = check_preset(theme_bytes)
-    # AMOLED v3 draws only the launcher base #000000. Do not generate, write,
-    # remove or replace the user's existing wallpaper.jpg backup/asset.
+    # Optional original CC0 anime art is pinned to the official upstream blob.
+    # Verify it before creating a backup or changing any device bytes. No
+    # user-supplied URL, arbitrary image or additional TV operation is accepted.
     wallpaper = None
     wallpaper_sha256 = None
+    if expected["wallpaper"]:
+        try:
+            wallpaper = remote_preset.fetch_verified_anime_wallpaper()
+        except remote_preset.RemotePresetError as exc:
+            raise MaintenanceError("Pinned anime image unavailable; nothing changed: " +
+                                   str(exc)) from exc
+        wallpaper_sha256 = hashlib.sha256(wallpaper).hexdigest()
     before = disabled_packages()
     folder = backup_theme()
     # Keep the exact verified theme bytes in the existing private backup.
@@ -523,7 +531,9 @@ def theme(*, update_from_main=False):
     RECEIPT.chmod(0o600)
     return ("CLEAN_YOUR_TV_THEME_OK\n"
             "Pinned official theme mechanism applied; mode: " + mode + ".\n"
-            "Verified AMOLED grid / no-wallpaper config applied; layout " +
+            "Verified AMOLED grid / " +
+            ("pinned CC0 anime wallpaper" if wallpaper is not None else "no wallpaper") +
+            " config applied; layout " +
             str(expected["columns"]) + " columns and " +
             str(expected["rows_below_dock"]) + " rows.\n" +
             ("CI-verified main: " + remote_sha[:12] + "\n" if remote_sha else "") +
