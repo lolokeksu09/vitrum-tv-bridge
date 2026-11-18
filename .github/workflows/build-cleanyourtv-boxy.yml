@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - .github/workflows/build-cleanyourtv-boxy.yml
+  pull_request:
+    paths:
+      - .github/workflows/build-cleanyourtv-boxy.yml
   workflow_dispatch:
 
 permissions:
