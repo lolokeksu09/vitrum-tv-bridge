@@ -12,6 +12,7 @@ on:
       - 'scripts/cleanyourtv_provider_files.py'
       - 'scripts/boxy_minimal_wallpaper.py'
       - 'presets/cleanyourtv-boxy/config.json'
+      - 'captures/**' # Screenshot commits advance main; verify exact head SHA
       - 'tests/test_cleanyourtv_maintenance.py'
       - 'tests/test_cleanyourtv_remote_preset.py'
       - 'tests/test_cleanyourtv_provider_theme.py'
