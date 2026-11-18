@@ -219,6 +219,55 @@ class SafetyTests(unittest.TestCase):
         self.assertIn(cm.HOME, direct[0])
         self.assertEqual(focus.call_count, 8)
 
+
+    @mock.patch.object(cm, "adb")
+    def test_real_boxy_window_dump_reports_home_focus(self, adb):
+        adb.return_value = (
+            "WINDOW MANAGER\\n"
+            "  mCurrentFocus=Window{c27cacf u0 "
+            "com.gathin.tvhome/com.gathin.tvhome.MainActivity}\\n"
+            "  mFocusedApp=ActivityRecord{b4cd9f6 u0 "
+            "com.gathin.tvhome/.MainActivity t1700}\\n"
+        )
+        self.assertTrue(cm.home_focus())
+        adb.assert_called_once_with("shell", "dumpsys", "window", timeout=30)
+
+    @mock.patch.object(cm, "adb")
+    def test_fallback_requires_both_focused_app_and_resumed_home(self, adb):
+        adb.side_effect = [
+            "WINDOW MANAGER\\n"
+            "  mFocusedApp=ActivityRecord{b4cd9f6 u0 "
+            "com.gathin.tvhome/.MainActivity t1700}\\n",
+            "topResumedActivity=ActivityRecord{a1 u0 "
+            "com.gathin.tvhome/.MainActivity t1700}",
+        ]
+        self.assertTrue(cm.home_focus())
+        self.assertEqual(adb.call_args_list[1].args,
+                         ("shell", "dumpsys", "activity", "activities"))
+
+    @mock.patch.object(cm, "adb")
+    def test_other_foreground_window_is_not_accepted(self, adb):
+        adb.return_value = (
+            "mCurrentFocus=Window{1 u0 com.android.tv.settings/.MainSettings}\\n"
+            "mFocusedApp=ActivityRecord{2 u0 com.gathin.tvhome/.MainActivity}\\n"
+        )
+        self.assertFalse(cm.home_focus())
+        adb.assert_called_once()
+
+    @mock.patch.object(cm, "adb")
+    def test_mismatched_resumed_activity_is_not_accepted(self, adb):
+        adb.side_effect = [
+            "mFocusedApp=ActivityRecord{2 u0 com.gathin.tvhome/.MainActivity}",
+            "topResumedActivity=ActivityRecord{3 u0 "
+            "com.android.tv.settings/.MainSettings}",
+        ]
+        self.assertFalse(cm.home_focus())
+
+    @mock.patch.object(cm, "adb")
+    def test_no_focus_information_fails_closed(self, adb):
+        adb.side_effect = ["WINDOW MANAGER", "no activity information"]
+        self.assertFalse(cm.home_focus())
+
     @mock.patch.object(cm, "adb")
     def test_theme_directory_probe_reports_definite_absence(self, adb):
         adb.return_value = (
