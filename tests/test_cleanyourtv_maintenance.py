@@ -190,7 +190,7 @@ class SafetyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
             def answer(*args, **kwargs):
-                if args[:4] == ("shell", "dumpsys", "window", "windows"):
+                if args[:3] == ("shell", "dumpsys", "window"):
                     return "mCurrentFocus=Window{1 u0 com.android.tv.settings/.MainSettings}\\nTOKEN_PRIVATE"
                 if args[:4] == ("shell", "dumpsys", "activity", "activities"):
                     return "topResumedActivity: ActivityRecord{2 u0 com.android.tv.settings/.MainSettings}"
