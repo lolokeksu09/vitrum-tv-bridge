@@ -11,7 +11,7 @@
   "dock_title": false,
   "fill_dock": true,
   "always_show_names": false,
-  "show_greeting": true,
+  "show_greeting": false,
   "icon_only_buttons": false,
   "icon_only_inputs": false,
   "show_network_pill": true,
