@@ -64,28 +64,45 @@ class SafetyTests(unittest.TestCase):
             cm.theme()
         restore.assert_called_once_with(Path("/tmp/official-theme.sh"), Path("/tmp/backup"))
 
+    @mock.patch.object(cm, "ProviderTheme")
     @mock.patch.object(cm, "run")
     @mock.patch.object(cm, "home_resolver", return_value=cm.HOME)
     @mock.patch.object(cm, "disabled_packages", return_value=[])
     @mock.patch.object(cm, "adb")
-    def test_provider_overlay_inaccessible_to_shell_fails_closed(
-        self, adb, disabled, home, run
+    @mock.patch.object(cm, "remote_directory_state", return_value="unknown")
+    def test_scoped_storage_falls_back_to_provider_backup_without_touching_wallpapers(
+        self, state, adb, disabled, home, run, provider
     ):
         with tempfile.TemporaryDirectory() as temp:
             def answer(*args, **kwargs):
                 if args[:3] == ("exec-out", "screencap", "-p"):
                     return b"\\x89PNG\\r\\n\\x1a\\n" + b"test"
-                if len(args) == 2 and args[0] == "shell" and "CYT_LS_EXIT" in args[1]:
-                    return ("ls: /sdcard/Android/data/com.gathin.tvhome/files: "
-                            "Permission denied\\nCYT_LS_EXIT:1")
-                if args[:3] == ("exec-out", "content", "read"):
-                    return b'{"columns":4}'
-                raise AssertionError("Unexpected ADB command: " + str(args))
+                raise AssertionError("Unexpected ADB call: " + str(args))
             adb.side_effect = answer
             with mock.patch.object(cm, "BACKUPS", Path(temp) / "backups"):
-                with self.assertRaisesRegex(cm.MaintenanceError, "inaccessible for backup"):
-                    cm.backup_theme()
+                folder = cm.backup_theme()
+                self.assertEqual((folder / "mode.txt").read_text(), "provider-only")
+        provider.return_value.backup_files.assert_called_once()
         run.assert_not_called()
+
+    @mock.patch.object(cm, "restart_official_theme_home")
+    @mock.patch.object(cm, "ProviderTheme")
+    @mock.patch.object(cm, "prepare_upstream", return_value=Path("/tmp/official-theme.sh"))
+    @mock.patch.object(cm, "backup_theme")
+    @mock.patch.object(cm, "disabled_packages", return_value=["package:stock"])
+    @mock.patch.object(cm, "device_guard")
+    def test_provider_theme_partial_failure_restores_prior_config_and_revision(
+        self, guard, disabled, backup, source, provider, restart
+    ):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            (folder / "mode.txt").write_text("provider-only")
+            backup.return_value = folder
+            provider.return_value.apply.side_effect = cm.ProviderError("partial write")
+            with self.assertRaisesRegex(cm.MaintenanceError, "previous theme restored"):
+                cm.theme()
+            provider.return_value.restore.assert_called_once()
+            restart.assert_called_once()
 
     @mock.patch.object(cm, "adb")
     def test_theme_directory_probe_reports_definite_absence(self, adb):
