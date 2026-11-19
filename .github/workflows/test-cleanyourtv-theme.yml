@@ -42,9 +42,7 @@ jobs:
           assert cfg["always_show_names"] is False
           assert cfg["focus_overshoot"] is False
           assert cfg["advanced_effects"] is False
-          assert cfg["dock_band_all"] is False
-          assert cfg["icon_only_buttons"] is True
-          assert cfg["icon_only_inputs"] is True
+          assert cfg["reduced_motion"] is True
           assert cfg["dock_band_all"] is False
           assert cfg["icon_only_buttons"] is True
           assert cfg["icon_only_inputs"] is True

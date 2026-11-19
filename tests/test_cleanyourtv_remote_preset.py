@@ -38,7 +38,8 @@ class RemoteThemeTests(unittest.TestCase):
 
     def test_refuses_missing_grid_or_colored_wallpaper(self):
         for name, value in [
-            ("wallpaper", "not-bool"), ("single_row", True), ("rows_below_dock", 0),
+            ("wallpaper", "not-bool"), ("reduced_motion", "on"),
+            ("single_row", True), ("rows_below_dock", 0),
             ("background_color", "#220000"), ("ambient_glow", True),
             ("app_glow", True), ("columns", 2),
         ]:

@@ -25,6 +25,7 @@
   "clock_glow": false,
   "focus_overshoot": false,
   "advanced_effects": false,
+  "reduced_motion": true,
   "glass_style": "rim",
   "dock_apps": [
     "com.google.android.youtube.tv",

@@ -34,6 +34,7 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(config["wallpaper"])
         self.assertEqual(config["wallpaper_dim"], 0)
         self.assertFalse(config["dock_glass"])
+        self.assertTrue(config["reduced_motion"])
         self.assertEqual(len(digest), 64)
 
     @mock.patch.object(cm, "backup_theme")
