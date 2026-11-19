@@ -12,6 +12,8 @@ import android.os.IBinder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -79,8 +81,15 @@ public final class AgentService extends Service {
             return;
         }
         JSONArray items = api.openIssues(repo);
+        ArrayList<JSONObject> eligible = new ArrayList<>();
         for (int i = 0; i < items.length(); i++) {
-            JSONObject issue = items.optJSONObject(i);
+            JSONObject found = items.optJSONObject(i);
+            if (found != null) eligible.add(found);
+        }
+        // REST returns newest first to avoid an old-issue backlog.
+        // Execute fresh requests in ascending issue order for predictable control.
+        eligible.sort(Comparator.comparingInt(item -> item.optInt("number", 0)));
+        for (JSONObject issue : eligible) {
             if (issue == null || issue.has("pull_request")) continue;
             int n = issue.optInt("number", 0);
             if (n <= AgentConfig.lastIssue(this)) continue;
