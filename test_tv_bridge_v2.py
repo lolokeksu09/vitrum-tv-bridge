@@ -436,10 +436,10 @@ class CleanYourTVMaintenanceContract(unittest.TestCase):
         for permissions in (bridge.Permissions(),
                             bridge.Permissions(control=True),
                             bridge.Permissions(maintenance=True)):
-            with self.subTest(permissions=permissions), \\
-                 self.assertRaises(bridge.ActionDenied):
-                bridge.run_action(self.DEVICE,
-                                  self.task("cleanyourtv_perf_probe"), permissions)
+            with self.subTest(permissions=permissions):
+                with self.assertRaises(bridge.ActionDenied):
+                    bridge.run_action(self.DEVICE,
+                                      self.task("cleanyourtv_perf_probe"), permissions)
 
     def test_only_anonymous_perf_metrics_may_appear_in_public_issues(self):
         safe = ("PERF_V1 frames=25 p50_ms=11.4 "
