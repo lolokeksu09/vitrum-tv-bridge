@@ -26,7 +26,12 @@ remote focus.
 - **No redundant names** beneath every banner (`always_show_names=false`).
   The selected app may still show its name for remote clarity.
 - **Focus navigation**: `glass_style=rim` keeps the thinnest solid non-glass
-  outline, and overshoot/motion effects stay off. The launcher v3.5.0 accepts
+  outline; overshoot and advanced effects stay off.
+- **Performance preset**: `reduced_motion=true` uses the upstream low-motion
+  implementation: no tile entrance/replay, no long fades and UI transitions
+  at most 90 ms. Scrolling may jump between positions rather than gliding.
+  This improves perceived responsiveness and reduces animation work; actual
+  frame times and CPU usage on BOXY remain unmeasured. The launcher v3.5.0 accepts
   only `glass`, `rim`, `halo`, not `none`. Removing all focus indication
   is not compatible with reliable D-pad control.
 
@@ -40,8 +45,11 @@ private launcher ThemeProvider backup before changing `config.json` and
 attempts byte-exact rollback; system packages, CEC, VPN, network settings and
 remote mappings are not changed.
 
-No new bootstrap is needed because this design uses only fields already
-accepted by the installed script. Any screenshot commit advances `main`;
+**One-time agent update is required for the performance switch.** The
+previously installed script only allows 28 theme keys and rejects the new
+`reduced_motion` key. Install the updated trusted local script via a normal
+`git pull --ff-only` and restart the bridge once; no arbitrary remote code
+updates are permitted. Any screenshot commit advances `main`;
 both required CI checks must be successful for the **current exact** SHA
 before the agent accepts an apply request.
 
@@ -50,10 +58,13 @@ before the agent accepts an apply request.
 1. CI `verify-preset` and `strict-read-only-bridge` pass on merged `main`.
 2. Bridge receipt confirms provider readback, HOME focus and unchanged disabled
    packages; backup path is recorded.
-3. Fresh 1920×1080 screenshot: no anime illustration, true black background,
-   nine visible app tiles, icon-only header, no dock band or red glow.
+3. On-device ThemeProvider readback confirms `reduced_motion=true`; HOME
+   remains the foreground launcher and the installed/disabled app sets do not
+   change. As the control repository is public, do not upload screenshots.
+   Visual inspection must be local or via a separately private channel.
 4. D-pad Right/Down navigate to adjacent tile and second row; focus remains
-   visible and no app gets launched inadvertently.
+   visible and no app gets launched inadvertently. Real frame times require
+   local `dumpsys gfxinfo` measurements outside the public issue tracker.
 5. Return to HOME and inspect result. Reboot is deliberately separate.
 
 ## Revert
