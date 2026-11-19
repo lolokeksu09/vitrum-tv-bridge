@@ -14,7 +14,7 @@ official `Gathin23/cleanyourtv` v3.5.0 source pinned at commit
 
 All issues must be posted by the authenticated owner and be younger than one hour, with
 JSON body `{"v":2,"op":"cleanyourtv_probe","args":{}}` (change `op` for the other two).
-Only the owner's previously confirmed `192.168.0.160:5555` is accepted.
+Only the operator's locally configured, previously confirmed BOXY ADB endpoint is accepted.
 
 **Not available:** arbitrary remote shell, modifying DNS, uninstalling packages, deleting
 app data, forcing root, flashing firmware, or disabling OEM/Android system services.
