@@ -152,8 +152,23 @@ def parse_issue(issue, now=None):
     return {"number": number, "op": op, "args": request["args"]}
 
 
+def require_private_capture_repo():
+    """Fail closed before any screen pixels or UI controls are accessed.
+
+    This bridge posts captures to GitHub history. Public repositories cannot
+    safely receive device screenshots even if local --allow-screenshots is set.
+    """
+    try:
+        metadata = json.loads(base.gh("api", "repos/" + REPO))
+    except (ValueError, BridgeError) as exc:
+        raise ActionDenied("Cannot verify private screenshot destination") from exc
+    if not isinstance(metadata, dict) or metadata.get("private") is not True:
+        raise ActionDenied("Screenshot capture disabled: control repository is public")
+
+
 def capture_screenshot(device, number, page=None):
-    """Screenshot is opt-in and persists in private Git history."""
+    """Only an explicitly authorized PRIVATE repo can receive screenshots."""
+    require_private_capture_repo()
     try:
         p = subprocess.run(
             ["adb", "-s", device, "exec-out", "screencap", "-p"],
@@ -205,6 +220,7 @@ def audit_five_pages(device, number):
     """Fixed, auditable read-only screenshot sequence; no issue-supplied actions."""
     if not isinstance(number, int) or number <= 0:
         raise BridgeError("Invalid issue identifier")
+    require_private_capture_repo()  # Before navigation or launching any TV app.
     names = ("home", "servers", "apps", "setup", "settings")
     base.adb(device, "am", "start", "-n", "app.rayclient.tv/.TvActivity")
     time.sleep(1.0)
@@ -486,7 +502,7 @@ def main():
     parser.add_argument("--allow-control", action="store_true",
                         help="Enable remote, app launch, Vitrum process stop")
     parser.add_argument("--allow-screenshots", action="store_true",
-                        help="Enable screenshot uploads into private Git history")
+                        help="Enable screenshots ONLY when GitHub control repository is private")
     parser.add_argument("--allow-installs", action="store_true",
                         help="Enable SHA-256 pinned local APK installation")
     parser.add_argument("--allow-maintenance", action="store_true",
