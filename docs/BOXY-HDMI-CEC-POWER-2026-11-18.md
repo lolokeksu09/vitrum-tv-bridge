@@ -1,10 +1,10 @@
 # BOXY HDMI-CEC power synchronization — 2026-11-18
 
-Device: SkyworthDigital HP44H, BOXY Android TV 11, `192.168.0.160:5555`.
+Device: SkyworthDigital HP44H, BOXY Android TV 11, the owner's private LAN ADB endpoint.
 Owner reports that TV and BOXY power down together and requests independent TV power.
 
 ## Verified UI before change
-Private TV screenshot `captures/issue-405.png`.
+Historic TV screenshot removed from the public repository for privacy.
 Path: **Настройки → Настройки устройства → Экран и звук → HDMI CEC**.
 Values on BOXY:
 - `CEC переключатель`: ON (preserved).
@@ -15,7 +15,7 @@ Values on BOXY:
 ## Change performed
 Through the authorized private GitHub/Termux ADB bridge, pressed OK on the
 confirmed `Автоматическое отключение устройства` row (issue #410).
-Screenshot `captures/issue-411.png` confirms it is now **OFF**.
+The previous private test recorded that the setting was **OFF**; the historical screenshot was removed for privacy.
 
 No package was disabled; no HDMI-CEC master toggle, DNS, launcher, firmware,
 system audio or TV power command was changed. This UI setting can decouple
