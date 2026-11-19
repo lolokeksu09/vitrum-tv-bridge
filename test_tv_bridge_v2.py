@@ -134,6 +134,27 @@ class ActionAuthorization(unittest.TestCase):
             bridge.run_action(self.DEVICE, self.req("screenshot"),
                               bridge.Permissions(control=True))
 
+    @mock.patch.object(bridge.subprocess, "run")
+    @mock.patch.object(bridge.base, "gh", return_value='{"private":false}')
+    def test_public_repo_denies_capture_before_reading_screen(self, gh, run):
+        with self.assertRaisesRegex(bridge.ActionDenied, "public"):
+            bridge.capture_screenshot(self.DEVICE, 501)
+        gh.assert_called_once_with("api", "repos/" + bridge.REPO)
+        run.assert_not_called()
+
+    @mock.patch.object(bridge.base, "adb")
+    @mock.patch.object(bridge.base, "gh", return_value='{"private":false}')
+    def test_public_repo_denies_ui_sweep_before_navigation(self, gh, adb):
+        with self.assertRaises(bridge.ActionDenied):
+            bridge.audit_five_pages(self.DEVICE, 501)
+        adb.assert_not_called()
+
+    @mock.patch.object(bridge.base, "gh", return_value='{"private":true}')
+    def test_only_confirmed_private_repo_allows_capture_path(self, gh):
+        bridge.require_private_capture_repo()
+        gh.assert_called_once_with("api", "repos/" + bridge.REPO)
+
+
     def test_install_requires_opt_in_and_valid_bytes(self):
         with tempfile.TemporaryDirectory() as folder:
             file = Path(folder) / "Vitrum-TV-test.apk"
