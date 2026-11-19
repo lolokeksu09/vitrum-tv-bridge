@@ -35,6 +35,7 @@ BOOL_KEYS = {
     "show_greeting", "icon_only_buttons", "icon_only_inputs",
     "show_network_pill", "show_inputs_pill", "wallpaper", "app_glow",
     "ambient_glow", "clock_glow", "focus_overshoot", "advanced_effects",
+    "reduced_motion",
 }
 INT_RANGES = {
     "columns": (4, 8),
