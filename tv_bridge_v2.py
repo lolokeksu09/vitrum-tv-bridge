@@ -170,8 +170,8 @@ def require_private_capture_repo():
 
 
 PERF_RESULT = re.compile(
-    r"PERF_V1 frames=[0-9]{1,5} p50_ms=[0-9]{1,4}\\.[0-9] "
-    r"p95_ms=[0-9]{1,4}\\.[0-9] slow16_pct=[0-9]{1,3}\\.[0-9]",
+    r"PERF_V1 frames=[0-9]{1,5} p50_ms=[0-9]{1,4}\.[0-9] "
+    r"p95_ms=[0-9]{1,4}\.[0-9] slow16_pct=[0-9]{1,3}\.[0-9]",
     re.ASCII,
 )
 
