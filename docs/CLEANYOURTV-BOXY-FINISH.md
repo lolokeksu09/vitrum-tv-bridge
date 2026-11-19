@@ -6,7 +6,7 @@ Source of truth: [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv)
 turn guessed package names into `pm disable-user` commands.
 
 ## Confirmed so far
-- Device: SkyworthDigital BOXY Android TV 4K, HP44H, Android TV 11; private local ADB `192.168.0.160:5555`.
+- Device: SkyworthDigital BOXY Android TV 4K, HP44H, Android TV 11; private local ADB address (not published).
 - CleanYourTV `com.gathin.tvhome` installed from the pinned upstream 3.5.0 source in
   the dedicated GitHub Actions workflow.
 - User reports that the launcher now replaces the stock Home.
@@ -57,11 +57,11 @@ be asserted until the real inventory has been inspected.
   an explicit list of packages left alone and reasons.
 - On a PC with the upstream repo and its `tools/venv`:
 ```bash
-TV_HOST=192.168.0.160 tools/disable.sh /path/to/approved/debloat.txt
+TV_HOST="$TV_HOST" tools/disable.sh /path/to/approved/debloat.txt
 ```
   The matching restore is:
 ```bash
-TV_HOST=192.168.0.160 tools/restore.sh /path/to/approved/debloat.txt
+TV_HOST="$TV_HOST" tools/restore.sh /path/to/approved/debloat.txt
 ```
   Those are the official upstream, safety-guarded scripts. Do not copy a list for
   a different Skyworth or Android release.
