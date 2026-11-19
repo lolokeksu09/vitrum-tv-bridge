@@ -48,6 +48,7 @@ public final class MainActivity extends Activity {
     private TextView tokenDetail;
     private TextView feedback;
     private boolean publicAllowed;
+    private boolean compactVertical;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable refresh = new Runnable() {
@@ -126,13 +127,16 @@ public final class MainActivity extends Activity {
 
     private void gap(LinearLayout container, int height) {
         View space = new View(this);
-        container.addView(space, new LinearLayout.LayoutParams(1, dp(height)));
+        // Keep the text size, but reclaim space on physically short TV layouts.
+        int spacing = TvLayoutSpec.verticalGap(height, compactVertical);
+        container.addView(space, new LinearLayout.LayoutParams(1, dp(spacing)));
     }
 
     private LinearLayout panel() {
         LinearLayout pane = column();
         pane.setBackground(background(PANEL, BORDER, 1));
-        pane.setPadding(dp(19), dp(17), dp(19), dp(17));
+        pane.setPadding(dp(17), dp(compactVertical ? 10 : 15),
+                dp(17), dp(compactVertical ? 10 : 15));
         return pane;
     }
 
@@ -164,6 +168,10 @@ public final class MainActivity extends Activity {
             statusHeading.setTextColor(WHITE);
         }
         statusDetail.setText(detail);
+        // A "NOT CONNECTED / Not configured" pair conveys the same information
+        // twice; hide the duplicate while preserving useful error diagnostics.
+        statusDetail.setVisibility((!enabled || detail.startsWith("Подключён"))
+                ? View.GONE : View.VISIBLE);
         accessibilityDetail.setText(RemoteAccessibilityService.ready()
                 ? "Пульт: разрешено" : "Пульт: включи спецвозможности");
         accessibilityDetail.setTextColor(RemoteAccessibilityService.ready() ? CYAN : WARNING);
@@ -188,6 +196,9 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().setBackgroundDrawableResource(android.R.color.black);
         publicAllowed = AgentConfig.publicModeEnabled(this);
+        float viewportDp = getResources().getDisplayMetrics().heightPixels
+                / getResources().getDisplayMetrics().density;
+        compactVertical = TvLayoutSpec.compactVertical(viewportDp);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -196,7 +207,8 @@ public final class MainActivity extends Activity {
 
         LinearLayout wrapper = column();
         wrapper.setGravity(Gravity.CENTER_HORIZONTAL);
-        wrapper.setPadding(dp(24), dp(18), dp(24), dp(18));
+        wrapper.setPadding(dp(24), dp(compactVertical ? 9 : 16),
+                dp(24), dp(compactVertical ? 9 : 16));
         scroll.addView(wrapper, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         setContentView(scroll);
@@ -214,10 +226,11 @@ public final class MainActivity extends Activity {
         title.setLetterSpacing(0.025f);
         brand.addView(title);
         gap(brand, 3);
-        brand.addView(text("Управление ТВ без Termux", 20, MUTED, false));
+        TextView subtitle = text("Управление ТВ без Termux", 20, MUTED, false);
+        brand.addView(subtitle);
         header.addView(brand, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView version = text("v0.3", 18, MUTED, true);
+        TextView version = text("v0.4", 18, MUTED, true);
         version.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         header.addView(version);
         screen.addView(header);
@@ -271,17 +284,17 @@ public final class MainActivity extends Activity {
         left.addView(channel);
         gap(left, 12);
 
-        LinearLayout device = panel();
-        device.addView(text("ИДЕНТИФИКАТОР ТВ", 16, MUTED, true));
-        gap(device, 7);
+        // Both fields are read-only. One shared panel avoids a redundant
+        // vertical card and keeps the TV identifier visible above the fold.
+        gap(channel, 10);
+        channel.addView(text("ИДЕНТИФИКАТОР ТВ", 15, MUTED, true));
+        gap(channel, 5);
         TextView deviceId = text(AgentConfig.deviceId(this), 16, CYAN, false);
         deviceId.setTypeface(Typeface.MONOSPACE);
         deviceId.setSingleLine(true);
         deviceId.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         deviceId.setTextIsSelectable(true);
-        device.addView(deviceId);
-        left.addView(device);
-        gap(left, 12);
+        channel.addView(deviceId);
 
         LinearLayout minorActions = row();
         Button stop = button("ОСТАНОВИТЬ", false);
@@ -300,7 +313,7 @@ public final class MainActivity extends Activity {
         gap(right, 10);
         publicToggle = button("", false);
         publicToggle.setId(View.generateViewId());
-        publicToggle.setMinHeight(dp(83));
+        publicToggle.setMinHeight(dp(compactVertical ? 70 : 82));
         publicToggle.setTextSize(20);
         publicToggle.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
         publicToggle.setPadding(dp(22), dp(10), dp(20), dp(10));
@@ -312,7 +325,7 @@ public final class MainActivity extends Activity {
         });
         updatePublicToggle();
         right.addView(publicToggle, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(86)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(compactVertical ? 76 : 86)));
         gap(right, 16);
 
         right.addView(text("GITHUB TOKEN", 18, MUTED, true));
@@ -331,13 +344,13 @@ public final class MainActivity extends Activity {
         tokenInput.setHint(AgentConfig.hasToken(this)
                 ? "Уже сохранён · оставь пустым" : "Вставь GitHub token");
         right.addView(tokenInput, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(71)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(compactVertical ? 66 : 71)));
         gap(right, 15);
 
         Button start = button("СОХРАНИТЬ И ВКЛЮЧИТЬ", true);
         start.setId(View.generateViewId());
         right.addView(start, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(compactVertical ? 68 : 72)));
         gap(right, 11);
         Button accessibility = button("РАЗРЕШИТЬ УПРАВЛЕНИЕ ТВ", false);
         accessibility.setId(View.generateViewId());
@@ -415,11 +428,16 @@ public final class MainActivity extends Activity {
         stop.setNextFocusRightId(reset.getId());
         reset.setNextFocusLeftId(stop.getId());
 
-        gap(screen, 18);
-        TextView footer = text("Токен остаётся на ТВ  ·  Управление ограничено разрешёнными командами",
-                16, MUTED, false);
-        footer.setGravity(Gravity.CENTER);
-        screen.addView(footer);
+        // Do not reserve a whole bottom row for a duplicate security message.
+        // If OEM insets or font scaling still cause overflow, remove the optional
+        // subtitle before allowing important buttons to be pushed below the fold.
+        scroll.post(() -> {
+            if (wrapper.getHeight() > scroll.getHeight() + dp(2)) {
+                subtitle.setVisibility(View.GONE);
+                statusDetail.setMaxLines(1);
+                feedback.setMaxLines(1);
+            }
+        });
 
         updateStatus();
         publicToggle.requestFocus();
