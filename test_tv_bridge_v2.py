@@ -154,6 +154,18 @@ class ActionAuthorization(unittest.TestCase):
         bridge.require_private_capture_repo()
         gh.assert_called_once_with("api", "repos/" + bridge.REPO)
 
+    @mock.patch.object(bridge.base, "gh", return_value='{"visibility":"public"}')
+    def test_missing_private_visibility_fails_closed(self, gh):
+        with self.assertRaisesRegex(bridge.ActionDenied, "visibility"):
+            bridge.require_private_capture_repo()
+
+    def test_public_issue_comments_withhold_device_output(self):
+        private_data = "Private backup: /data/data/com.termux/files/home/private"
+        self.assertEqual(bridge.public_safe_result(private_data, True), private_data)
+        safe = bridge.public_safe_result(private_data, False)
+        self.assertNotIn("/data/data", safe)
+        self.assertIn("withheld", safe)
+
 
     def test_install_requires_opt_in_and_valid_bytes(self):
         with tempfile.TemporaryDirectory() as folder:
