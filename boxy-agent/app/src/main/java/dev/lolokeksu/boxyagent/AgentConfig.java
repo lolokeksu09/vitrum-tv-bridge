@@ -87,17 +87,22 @@ public final class AgentConfig {
     public static boolean hasToken(Context context) { return !token(context).isEmpty(); }
     public static String repo(Context context) { return prefs(context).getString("repo", ""); }
     public static boolean enabled(Context context) { return prefs(context).getBoolean("enabled", false); }
+    public static boolean publicModeEnabled(Context context) { return prefs(context).getBoolean("publicMode", false); }
     public static int lastIssue(Context context) { return prefs(context).getInt("lastIssue", 0); }
     public static String status(Context context) { return prefs(context).getString("status", "Не настроен"); }
 
     public static void setStatus(Context context, String status) {
         prefs(context).edit().putString("status", status).apply();
     }
-    public static void saveRepo(Context context, String repo) {
-        if (!AgentPolicy.allowedRepo(repo)) throw new IllegalArgumentException("Invalid private repo");
-        SharedPreferences.Editor editor = prefs(context).edit().putString("repo", repo);
-        if (!repo.equals(prefs(context).getString("repo", ""))) editor.putInt("lastIssue", 0);
-        editor.apply();
+    public static void saveRepo(Context context, String repo, boolean publicMode) {
+        if (!AgentPolicy.allowedRepo(repo)
+                || (publicMode && !AgentPolicy.PUBLIC_CONTROL_REPO.equals(repo)))
+            throw new IllegalArgumentException("Invalid control repository or public consent");
+        SharedPreferences.Editor editor = prefs(context).edit().putString("repo", repo)
+                .putBoolean("publicMode", publicMode);
+        if (!repo.equals(prefs(context).getString("repo", ""))
+                || publicMode != publicModeEnabled(context)) editor.putInt("lastIssue", 0);
+        if (!editor.commit()) throw new IllegalStateException("Saving control repo failed");
     }
     public static void setEnabled(Context context, boolean value) {
         prefs(context).edit().putBoolean("enabled", value).commit();
@@ -109,6 +114,6 @@ public final class AgentConfig {
     }
     public static void disconnect(Context context) {
         prefs(context).edit().putBoolean("enabled", false).remove("secret")
-                .remove("repo").putInt("lastIssue", 0).commit();
+                .remove("repo").remove("publicMode").putInt("lastIssue", 0).commit();
     }
 }

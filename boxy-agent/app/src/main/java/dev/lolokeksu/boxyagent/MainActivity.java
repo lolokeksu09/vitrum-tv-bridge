@@ -15,6 +15,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -26,6 +27,7 @@ public final class MainActivity extends Activity {
     private static final int CYAN = Color.rgb(80, 213, 209);
     private EditText repoInput;
     private EditText tokenInput;
+    private CheckBox publicConsent;
     private TextView status;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable refresh = new Runnable() {
@@ -101,7 +103,7 @@ public final class MainActivity extends Activity {
         id.setTextIsSelectable(true);
         content.addView(id);
         addSpace(content, 18);
-        content.addView(text("Приватный GitHub-репозиторий (владелец: lolokeksu09)", 16, WHITE));
+        content.addView(text("GitHub-репозиторий для команд (владелец: lolokeksu09)", 16, WHITE));
         addSpace(content, 8);
 
         repoInput = new EditText(this);
@@ -111,10 +113,22 @@ public final class MainActivity extends Activity {
         repoInput.setBackground(shape(0xff12171d, 0xff35414c));
         repoInput.setPadding(dp(16), dp(12), dp(16), dp(12));
         repoInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        repoInput.setHint("lolokeksu09/имя-приватного-репозитория");
-        repoInput.setText(AgentConfig.repo(this));
+        repoInput.setHint(AgentPolicy.PUBLIC_CONTROL_REPO);
+        repoInput.setText(AgentConfig.repo(this).isEmpty()
+                ? AgentPolicy.PUBLIC_CONTROL_REPO : AgentConfig.repo(this));
         content.addView(repoInput, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        addSpace(content, 14);
+        publicConsent = new CheckBox(this);
+        publicConsent.setText("Разрешить ПУБЛИЧНЫЙ vitrum-tv-bridge (команды и ответы видны всем)");
+        publicConsent.setTextSize(15);
+        publicConsent.setTextColor(WHITE);
+        publicConsent.setButtonTintList(android.content.res.ColorStateList.valueOf(CYAN));
+        publicConsent.setChecked(AgentConfig.publicModeEnabled(this));
+        content.addView(publicConsent);
+        addSpace(content, 8);
+        content.addView(text("В публичном режиме не показывай приватные данные на экране. "
+                + "Команды только от владельца GitHub, без скриншотов и системного доступа.", 13, MUTED));
         addSpace(content, 14);
         content.addView(text("Fine-grained GitHub token — доступ только к Issues этого репозитория", 16, WHITE));
         addSpace(content, 8);
@@ -138,7 +152,12 @@ public final class MainActivity extends Activity {
             String selected = repoInput.getText().toString().trim();
             String suppliedToken = tokenInput.getText().toString().trim();
             if (!AgentPolicy.allowedRepo(selected)) {
-                message("Укажи приватный репозиторий в своём GitHub-аккаунте.");
+                message("Укажи репозиторий своего GitHub-аккаунта.");
+                return;
+            }
+            boolean publicMode = publicConsent.isChecked();
+            if (publicMode && !AgentPolicy.PUBLIC_CONTROL_REPO.equals(selected)) {
+                message("Публичный режим разрешён только для vitrum-tv-bridge.");
                 return;
             }
             try {
@@ -148,9 +167,9 @@ public final class MainActivity extends Activity {
                     message("Сначала введи fine-grained token.");
                     return;
                 }
-                AgentConfig.saveRepo(this, selected);
+                AgentConfig.saveRepo(this, selected, publicMode);
                 AgentConfig.setEnabled(this, true);
-                AgentConfig.setStatus(this, "Проверка приватного GitHub…");
+                AgentConfig.setStatus(this, publicMode ? "Проверка публичного GitHub…" : "Проверка приватного GitHub…");
                 Intent service = new Intent(this, AgentService.class);
                 if (Build.VERSION.SDK_INT >= 26) startForegroundService(service);
                 else startService(service);
@@ -184,8 +203,9 @@ public final class MainActivity extends Activity {
         forget.setOnClickListener(v -> {
             stopService(new Intent(this, AgentService.class));
             AgentConfig.disconnect(this);
-            repoInput.setText("");
+            repoInput.setText(AgentPolicy.PUBLIC_CONTROL_REPO);
             tokenInput.setText("");
+            publicConsent.setChecked(false);
             message("Подключение удалено из настроек приложения.");
         });
         content.addView(forget);
@@ -196,9 +216,9 @@ public final class MainActivity extends Activity {
         status.setBackground(shape(0xff12171d, 0xff23313a));
         content.addView(status);
         addSpace(content, 20);
-        content.addView(text("Безопасность: только приватный репозиторий, команды владельца, "
-                + "без ADB-shell, скриншотов, установки APK и изменения системных пакетов. "
-                + "Управление Home/Back требует разрешения Android Accessibility.", 13, MUTED));
+        content.addView(text("Безопасность: в публичном режиме запросы и ответы доступны всем. "
+                + "Разрешены только команды владельца, без ADB-shell, скриншотов, установки APK "
+                + "и изменения системных пакетов. Home/Back требуют разрешения Accessibility.", 13, MUTED));
     }
 
     @Override protected void onResume() {
