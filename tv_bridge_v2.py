@@ -152,18 +152,28 @@ def parse_issue(issue, now=None):
     return {"number": number, "op": op, "args": request["args"]}
 
 
-def require_private_capture_repo():
-    """Fail closed before any screen pixels or UI controls are accessed.
-
-    This bridge posts captures to GitHub history. Public repositories cannot
-    safely receive device screenshots even if local --allow-screenshots is set.
-    """
+def repository_is_private():
+    """Public destination is untrusted for device-specific results."""
     try:
         metadata = json.loads(base.gh("api", "repos/" + REPO))
     except (ValueError, BridgeError) as exc:
-        raise ActionDenied("Cannot verify private screenshot destination") from exc
-    if not isinstance(metadata, dict) or metadata.get("private") is not True:
+        raise ActionDenied("Cannot verify repository visibility") from exc
+    if not isinstance(metadata, dict) or type(metadata.get("private")) is not bool:
+        raise ActionDenied("Repository visibility missing; no operation")
+    return metadata["private"]
+
+
+def require_private_capture_repo():
+    """Never read screen pixels if destination is public or unverified."""
+    if not repository_is_private():
         raise ActionDenied("Screenshot capture disabled: control repository is public")
+
+
+def public_safe_result(result, private_repo):
+    """Don't publish local paths, packages or diagnostics as public comments."""
+    return result if private_repo else (
+        "Device-specific result withheld because GitHub control repository is public."
+    )
 
 
 def capture_screenshot(device, number, page=None):
@@ -458,6 +468,7 @@ def already_answered(number):
 
 
 def process(device, permissions):
+    private_repo = repository_is_private()
     issues = json.loads(base.gh(
         "issue", "list", "-R", REPO, "--state", "open", "--limit", "100",
         "--json", "number,title,body,author,createdAt"
@@ -479,6 +490,7 @@ def process(device, permissions):
             status, result = "DENIED", str(exc)
         except BridgeError as exc:
             status, result = "ERROR", str(exc)
+        result = public_safe_result(result, private_repo)
         result = re.sub(
             r"(?i)\b(?:vless|vmess|trojan|ss|hysteria2)://\S+",
             "<redacted link>", result
