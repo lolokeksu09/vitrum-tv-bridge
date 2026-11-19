@@ -1,9 +1,22 @@
-# Vitrum TV — private Termux / ADB bridge
+# Vitrum TV — Termux / ADB bridge
 
-A **locally operated, opt-in** bridge between ChatGPT's connected GitHub account and a BOXY Android TV on the owner's home Wi-Fi. GitHub Issues in this **private repository** carry narrow, typed requests. A local Termux agent checks them, runs permitted ADB commands, posts results in the same issue and closes it.
+A **locally operated, opt-in** bridge between ChatGPT's connected GitHub account and a BOXY Android TV on the owner's home Wi-Fi. GitHub Issues carry narrow, typed requests. A local Termux agent checks them, runs permitted ADB commands, posts results in the same issue and closes it.
 
 **Working v1:** `tv_bridge.py` — read-only diagnostics.
 **Expanded v2:** `tv_bridge_v2.py` — additional diagnostics and separately authorized remote/app controls, screenshots and Vitrum TV debug APK installation.
+
+> **Security: This repository is PUBLIC.** Its issues, actions, logs,
+> branches and prior Git history are not confidential. Never upload TV
+> screenshots, credentials, device backups or private ADB diagnostics here.
+> Screenshot operations are disabled in the updated agent when the repository
+> is public; detailed command results are suppressed. A previously running
+> local agent must be updated/restarted for this protection to take effect.
+> Historical screenshots can still exist in old commits and branch refs.
+> Use a **separate PRIVATE control repository** for personal TV operations.
+> See [public security audit](docs/PUBLIC-SECURITY-AUDIT-2026-11-19.md).
+>
+> The `captures` file deliberately blocks older agents from creating
+> `captures/issue-*.png` paths in public `main`.
 
 Instructions in Russian: [README.ru.md](README.ru.md).
 
