@@ -604,11 +604,17 @@ def reboot_check():
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("probe", "theme", "reboot"):
-        raise MaintenanceError("Fixed operations only: probe, theme, reboot")
+    if len(sys.argv) != 2 or sys.argv[1] not in ("probe", "theme", "reboot", "perf"):
+        raise MaintenanceError("Fixed operations only: probe, theme, reboot, perf")
     operation = sys.argv[1]
     if operation == "probe":
         print(probe())
+    elif operation == "perf":
+        if __package__:
+            from . import cleanyourtv_perf_probe
+        else:
+            import cleanyourtv_perf_probe
+        print(cleanyourtv_perf_probe.measure(adb, device_guard, home_focus))
     elif operation == "theme":
         print(theme(update_from_main=True))
     else:

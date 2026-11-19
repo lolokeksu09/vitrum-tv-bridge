@@ -414,7 +414,7 @@ class CleanYourTVMaintenanceContract(unittest.TestCase):
 
     def test_schema_rejects_shell_and_arbitrary_maintenance_parameters(self):
         for op in ("cleanyourtv_probe", "cleanyourtv_apply_theme",
-                   "cleanyourtv_reboot_check"):
+                   "cleanyourtv_reboot_check", "cleanyourtv_perf_probe"):
             self.assertIsNotNone(bridge.parse_issue(issue(op), now=NOW))
             self.assertIsNone(bridge.parse_issue(
                 issue(op, {"command": "pm disable-user com.android.systemui"}),
@@ -432,14 +432,40 @@ class CleanYourTVMaintenanceContract(unittest.TestCase):
                               self.task("cleanyourtv_reboot_check"),
                               bridge.Permissions(maintenance=True))
 
+    def test_perf_sampling_requires_both_maintenance_and_control(self):
+        for permissions in (bridge.Permissions(),
+                            bridge.Permissions(control=True),
+                            bridge.Permissions(maintenance=True)):
+            with self.subTest(permissions=permissions):
+                with self.assertRaises(bridge.ActionDenied):
+                    bridge.run_action(self.DEVICE,
+                                      self.task("cleanyourtv_perf_probe"), permissions)
+
+    def test_only_anonymous_perf_metrics_may_appear_in_public_issues(self):
+        safe = ("PERF_V1 frames=25 p50_ms=11.4 "
+                "p95_ms=22.1 slow16_pct=16.0")
+        self.assertEqual(bridge.public_safe_result(
+            safe, False, "cleanyourtv_perf_probe", "SUCCESS"), safe)
+        for candidate, op, status in (
+            (safe + "\\nPrivate backup: /sdcard/secret", "cleanyourtv_perf_probe", "SUCCESS"),
+            (safe, "app_info", "SUCCESS"),
+            (safe, "cleanyourtv_perf_probe", "ERROR"),
+            (safe.replace("11.4", "11x4"), "cleanyourtv_perf_probe", "SUCCESS"),
+        ):
+            with self.subTest(candidate=candidate, op=op, status=status):
+                sanitized = bridge.public_safe_result(candidate, False, op, status)
+                self.assertIn("withheld", sanitized)
+                self.assertNotIn("/sdcard/", sanitized)
+
     @mock.patch.object(bridge, "invoke_cleanyourtv_maintenance")
     def test_ops_dispatch_only_fixed_internal_actions(self, invoke):
         invoke.return_value = "VERIFIED"
-        permissions = bridge.Permissions(maintenance=True, reboot=True)
+        permissions = bridge.Permissions(maintenance=True, reboot=True, control=True)
         expected = (
             ("cleanyourtv_probe", "probe"),
             ("cleanyourtv_apply_theme", "theme"),
             ("cleanyourtv_reboot_check", "reboot"),
+            ("cleanyourtv_perf_probe", "perf"),
         )
         for op, internal in expected:
             output = bridge.run_action(self.DEVICE, self.task(op), permissions)
