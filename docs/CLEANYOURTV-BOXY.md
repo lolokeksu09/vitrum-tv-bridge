@@ -9,7 +9,7 @@ The private CI workflow builds the upstream Java launcher with JDK 17 / Android 
 Source: https://github.com/Gathin23/cleanyourtv
 
 ## Safe staging
-Only the TV at the previously confirmed ADB address `192.168.0.160:5555`
+Only the previously confirmed TV at the operator's private LAN ADB endpoint
 and with model name `4K Android TV Box` is accepted by
 `scripts/stage-cleanyourtv-boxy.sh`.
 
