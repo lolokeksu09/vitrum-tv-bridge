@@ -9,7 +9,7 @@ Instructions in Russian: [README.ru.md](README.ru.md).
 
 ## Phone setup
 
-The phone is already authenticated to GitHub CLI and ADB to `192.168.0.160:5555`.
+The owner's phone uses local GitHub CLI and Wi-Fi ADB. Keep the TV's actual LAN address and credentials outside the public repository.
 
 ```bash
 pkg install -y python gh android-tools
