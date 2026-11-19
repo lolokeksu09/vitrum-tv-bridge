@@ -27,6 +27,7 @@ public final class GithubApi {
             throw new IOException("Invalid GitHub endpoint");
         HttpURLConnection connection = (HttpURLConnection) new URL(HOST + path).openConnection();
         connection.setInstanceFollowRedirects(false);
+        connection.setUseCaches(false);
         connection.setConnectTimeout(7000);
         connection.setReadTimeout(9000);
         connection.setRequestMethod(method);
@@ -64,7 +65,7 @@ public final class GithubApi {
     }
     public JSONArray openIssues(String repo) throws Exception {
         return new JSONArray(request("GET", "/repos/" + repo
-                + "/issues?state=open&sort=created&direction=asc&per_page=40", null));
+                + "/issues?state=open&sort=created&direction=desc&per_page=40", null));
     }
     public void comment(String repo, int number, String comment) throws Exception {
         if (comment == null || comment.length() > 500) throw new IOException("Comment too long");
