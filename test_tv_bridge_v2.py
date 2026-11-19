@@ -221,9 +221,10 @@ class ForegroundGuard(unittest.TestCase):
         capture.assert_not_called()
         self.assertFalse(any(call.args[1] == "input" for call in adb.call_args_list))
 
+    @mock.patch.object(bridge, "require_private_capture_repo")
     @mock.patch.object(bridge, "capture_screenshot", return_value="private capture")
     @mock.patch.object(bridge.base, "adb")
-    def test_ui_sweep_records_all_five_pages_only_with_verified_foreground(self, adb, capture):
+    def test_ui_sweep_records_all_five_pages_only_with_verified_foreground(self, adb, capture, private_guard):
         def reply(device, *arguments, **kwargs):
             if arguments[:3] == ("dumpsys", "activity", "activities"):
                 return ("topResumedActivity=ActivityRecord{123 u0 app.rayclient.tv/.TvActivity t9}", 0)
@@ -233,6 +234,7 @@ class ForegroundGuard(unittest.TestCase):
             self.DEVICE, {"number": 50, "op": "ui_sweep", "args": {}},
             bridge.Permissions(control=True, screenshot=True)
         )
+        private_guard.assert_called_once()
         self.assertEqual(5, capture.call_count)
         self.assertIn("home", result)
         self.assertIn("settings", result)
