@@ -5,6 +5,7 @@ on:
     branches:
       - build/scrcpy-ru-20261114
       - feature/scrcpy-profiles-v1
+      - feature/scrcpy-settings-v2
     paths:
       - '.github/workflows/build-scrcpy-ru.yml'
       - 'scrcpy-ru/**'
@@ -32,6 +33,8 @@ jobs:
         run: |
           python3 scrcpy-ru/apply_to_source.py android_source
           python3 scrcpy-ru/profiles/apply_profiles.py android_source
+          python3 scrcpy-ru/settings/apply_settings.py android_source
+          python3 scrcpy-ru/settings/check_settings.py android_source
           python3 - <<'PY'
           import pathlib, xml.etree.ElementTree as ET
           root=pathlib.Path('android_source/app/src/main/res')
@@ -39,22 +42,22 @@ jobs:
           for file in files:
               doc=ET.parse(file).getroot()
               names={e.get('name') for e in doc}
-              if len(names)!=355 or 'app_name' not in names:
+              if len(names)!=367 or 'app_name' not in names:
                   raise SystemExit(f'Invalid localization resource: {file} ({len(names)} strings)')
               text=file.read_text(encoding='utf-8')
               before='<string name="app_name" formatted="false">"Scrcpy"</string>'
               assert text.count(before)==1, f'Unexpected label in {file}'
-              file.write_text(text.replace(before,'<string name="app_name" formatted="false">"Scrcpy RU Profiles"</string>'),encoding='utf-8')
+              file.write_text(text.replace(before,'<string name="app_name" formatted="false">"Scrcpy RU Settings"</string>'),encoding='utf-8')
           gradle=pathlib.Path('android_source/app/build.gradle')
           s=gradle.read_text(encoding='utf-8')
           before="applicationId 'ro.sw3g.scrcpy'"
           assert s.count(before)==1
-          gradle.write_text(s.replace(before,"applicationId 'ro.sw3g.scrcpy.ru.profiles'"),encoding='utf-8')
+          gradle.write_text(s.replace(before,"applicationId 'ro.sw3g.scrcpy.ru.settings'"),encoding='utf-8')
           gradle=pathlib.Path('android_source/app/build.gradle')
           version=gradle.read_text(encoding='utf-8')
           assert version.count('versionCode 9')==1 and version.count("versionName '1.5.1-foreground-usb'")==1
-          gradle.write_text(version.replace('versionCode 9','versionCode 10').replace("versionName '1.5.1-foreground-usb'","versionName '1.6.0-profiles-v1'"),encoding='utf-8')
-          print('Localization and profiles validated; distinct package ro.sw3g.scrcpy.ru.profiles for safe parallel testing')
+          gradle.write_text(version.replace('versionCode 9','versionCode 11').replace("versionName '1.5.1-foreground-usb'","versionName '1.7.0-settings-v2'"),encoding='utf-8')
+          print('Settings and profiles validated; separate test package ro.sw3g.scrcpy.ru.settings')
           PY
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -82,7 +85,7 @@ jobs:
           cases=sum(int(ET.parse(f).getroot().get('tests','0')) for f in files)
           failures=sum(int(ET.parse(f).getroot().get('failures','0'))+int(ET.parse(f).getroot().get('errors','0')) for f in files)
           print(f'Unit tests: {cases}, failed/error: {failures}')
-          if cases<7 or failures: raise SystemExit('Required Profiles tests missing or failing')
+          if cases<14 or failures: raise SystemExit('Required Profiles tests missing or failing')
           PY
       - name: Build debug APK
         working-directory: android_source
@@ -99,12 +102,12 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -8
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           sha256sum "$APK"
-          cp "$APK" Scrcpy-RU-Profiles-1.6.0-debug.apk
+          cp "$APK" Scrcpy-RU-Settings-1.7.0-debug.apk
           echo "### APK built" >> "$GITHUB_STEP_SUMMARY"
-          sha256sum Scrcpy-RU-Profiles-1.6.0-debug.apk >> "$GITHUB_STEP_SUMMARY"
+          sha256sum Scrcpy-RU-Settings-1.7.0-debug.apk >> "$GITHUB_STEP_SUMMARY"
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Scrcpy-RU-Profiles-APK
-          path: Scrcpy-RU-Profiles-1.6.0-debug.apk
+          name: Scrcpy-RU-Settings-APK
+          path: Scrcpy-RU-Settings-1.7.0-debug.apk
           if-no-files-found: error
