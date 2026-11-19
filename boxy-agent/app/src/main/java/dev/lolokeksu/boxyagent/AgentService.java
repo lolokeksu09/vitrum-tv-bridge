@@ -36,7 +36,7 @@ public final class AgentService extends Service {
         Notification note = new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .setContentTitle("BOXY Agent")
-                .setContentText("Подключение к приватному GitHub")
+.setContentText("Подключение к GitHub Issues")
                 .setContentIntent(pending)
                 .setOngoing(true)
                 .build();
@@ -45,7 +45,9 @@ public final class AgentService extends Service {
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (!AgentConfig.enabled(this) || !AgentConfig.hasToken(this)
-                || !AgentPolicy.allowedRepo(AgentConfig.repo(this))) {
+                || !AgentPolicy.allowedRepo(AgentConfig.repo(this))
+                || (AgentConfig.publicModeEnabled(this)
+                        && !AgentPolicy.PUBLIC_CONTROL_REPO.equals(AgentConfig.repo(this)))) {
             AgentConfig.setStatus(this, "Не настроено подключение");
             stopSelf();
             return START_NOT_STICKY;
@@ -63,7 +65,7 @@ public final class AgentService extends Service {
             poll();
         } catch (Exception ignored) {
             // Never log tokens, issue content or device details.
-            AgentConfig.setStatus(this, "Ошибка связи с приватным GitHub");
+            AgentConfig.setStatus(this, "Ошибка связи с GitHub");
         }
     }
 
@@ -72,12 +74,14 @@ public final class AgentService extends Service {
         if (!AgentPolicy.allowedRepo(repo)) throw new IllegalStateException("Invalid repo");
         GithubApi api = new GithubApi(AgentConfig.token(this));
         JSONObject metadata = api.repository(repo);
-        if (!metadata.optBoolean("private", false)
-                || !repo.equalsIgnoreCase(metadata.optString("full_name", ""))
-                || !AgentPolicy.OWNER.equalsIgnoreCase(
+        boolean githubPrivate = metadata.optBoolean("private", false);
+        if (!AgentPolicy.allowedControlRepo(repo, githubPrivate,
+                        AgentConfig.publicModeEnabled(this))
+                || !repo.equals(metadata.optString("full_name", ""))
+                || !AgentPolicy.OWNER.equals(
                         metadata.optJSONObject("owner") == null ? "" :
                                 metadata.optJSONObject("owner").optString("login", ""))) {
-            AgentConfig.setStatus(this, "ОТКАЗ: репозиторий не приватный или чужой");
+            AgentConfig.setStatus(this, "ОТКАЗ: недопустимый канал или владелец");
             return;
         }
         JSONArray items = api.openIssues(repo);
@@ -123,7 +127,8 @@ public final class AgentService extends Service {
             api.close(repo, n);
             AgentConfig.setStatus(this, "Команда обработана");
         }
-        AgentConfig.setStatus(this, "Подключён к приватному каналу");
+        AgentConfig.setStatus(this, githubPrivate ? "Подключён к приватному каналу"
+                : "Подключён к ПУБЛИЧНОМУ каналу — команды видны всем");
     }
 
     private boolean runAllowed(String op) {

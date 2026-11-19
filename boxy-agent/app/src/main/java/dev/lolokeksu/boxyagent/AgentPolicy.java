@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 public final class AgentPolicy {
     public static final String OWNER = "lolokeksu09";
+    public static final String PUBLIC_CONTROL_REPO = "lolokeksu09/vitrum-tv-bridge";
     public static final String PREFIX = "BOXYAGENT/v1 ";
     public static final String RESULT_MARKER = "<!-- boxy-agent-v1-result -->";
     private static final Pattern REPO = Pattern.compile(
@@ -27,6 +28,13 @@ public final class AgentPolicy {
     public static boolean allowedRepo(String repo) {
         return repo != null && REPO.matcher(repo).matches()
                 && !repo.contains("..") && !repo.endsWith(".");
+    }
+
+    /** Public mode requires an explicit local opt-in and is bound to ONE known repo. */
+    public static boolean allowedControlRepo(String repo, boolean githubPrivate,
+                                             boolean publicModeEnabled) {
+        if (!allowedRepo(repo)) return false;
+        return githubPrivate || (publicModeEnabled && PUBLIC_CONTROL_REPO.equals(repo));
     }
 
     public static boolean allowedCommand(String op) {

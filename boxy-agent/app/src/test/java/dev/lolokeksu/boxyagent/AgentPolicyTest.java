@@ -12,6 +12,15 @@ public final class AgentPolicyTest {
         assertFalse(AgentPolicy.allowedRepo("lolokeksu09/repo.."));
     }
 
+    @Test public void publicModeIsExplicitAndBoundToSingleRepo() {
+        String known = AgentPolicy.PUBLIC_CONTROL_REPO;
+        assertFalse(AgentPolicy.allowedControlRepo(known, false, false));
+        assertTrue(AgentPolicy.allowedControlRepo(known, false, true));
+        assertTrue(AgentPolicy.allowedControlRepo("lolokeksu09/my-private", true, false));
+        assertFalse(AgentPolicy.allowedControlRepo("lolokeksu09/another-public", false, true));
+        assertFalse(AgentPolicy.allowedControlRepo("attacker/boxy", false, true));
+    }
+
     @Test public void noArbitraryCommandsOrPackages() {
         assertTrue(AgentPolicy.allowedCommand("home"));
         assertTrue(AgentPolicy.allowedCommand("back"));

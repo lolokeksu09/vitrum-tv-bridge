@@ -21,3 +21,15 @@
   Never claim run on target without installation and physical verification.
 - v0.1.0 is NOT an updater. APK updates require Android user consent
   and stable signing identity for upgrades.
+
+## Explicit PUBLIC GitHub mode (v0.2.0)
+
+To avoid GitHub Actions minutes, the agent can use the existing public
+`lolokeksu09/vitrum-tv-bridge` Issue tracker. Issues do not run CI.
+This mode is **disabled by default**, requires user checkbox consent on TV,
+and allows only the above exact repo. Private repo support is retained.
+All public issue titles, request payloads and status replies are visible to
+third parties: never include secrets/screenshots/logs. Only the repo owner's
+GitHub-authored issues are accepted. The UI must warn the owner before enable.
+The app still refuses arbitrary shell commands, APK installs, uninstalls,
+network/VPN configuration changes and screenshot capture.
