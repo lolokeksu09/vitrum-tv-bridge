@@ -2,22 +2,7 @@ name: Private TV bridge safety tests
 
 on:
   push:
-    paths:
-      - 'tv_bridge.py'
-      - 'tv_bridge_v2.py'
-      - 'test_tv_bridge.py'
-      - 'test_tv_bridge_v2.py'
-      - 'scripts/cleanyourtv_boxy_maintenance.py'
-      - 'scripts/cleanyourtv_remote_preset.py'
-      - 'scripts/cleanyourtv_provider_files.py'
-      - 'scripts/boxy_minimal_wallpaper.py'
-      - 'presets/cleanyourtv-boxy/config.json'
-      - 'captures/**' # Screenshot commits advance main; verify exact head SHA
-      - 'tests/test_cleanyourtv_maintenance.py'
-      - 'tests/test_cleanyourtv_remote_preset.py'
-      - 'tests/test_cleanyourtv_provider_theme.py'
-      - 'tests/test_boxy_minimal_wallpaper.py'
-      - '.github/workflows/bridge-tests.yml'
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
