@@ -37,7 +37,7 @@ CONTROL_OPS = frozenset(("key", "launch_vitrum", "stop_vitrum", "launch_app"))
 SENSITIVE_OPS = frozenset(("screenshot", "install_vitrum", "install_vitrum_ci",
                           "install_monolith_ci", "ui_sweep"))
 MAINTENANCE_OPS = frozenset(("cleanyourtv_probe", "cleanyourtv_apply_theme",
-                             "cleanyourtv_reboot_check"))
+                             "cleanyourtv_reboot_check", "cleanyourtv_perf_probe"))
 ALL_OPS = READ_OPS | CONTROL_OPS | SENSITIVE_OPS | MAINTENANCE_OPS
 PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", re.ASCII)
 APK = re.compile(r"(?:Vitrum-TV[A-Za-z0-9._-]*|tv-debug)\.apk", re.ASCII)
@@ -169,11 +169,23 @@ def require_private_capture_repo():
         raise ActionDenied("Screenshot capture disabled: control repository is public")
 
 
-def public_safe_result(result, private_repo):
+PERF_RESULT = re.compile(
+    r"PERF_V1 frames=[0-9]{1,5} p50_ms=[0-9]{1,4}\\.[0-9] "
+    r"p95_ms=[0-9]{1,4}\\.[0-9] slow16_pct=[0-9]{1,3}\\.[0-9]",
+    re.ASCII,
+)
+
+
+def public_safe_result(result, private_repo, op=None, status=None):
     """Don't publish local paths, packages or diagnostics as public comments."""
-    return result if private_repo else (
-        "Device-specific result withheld because GitHub control repository is public."
-    )
+    if private_repo:
+        return result
+    # Only validated, anonymous aggregate performance numbers are public-safe.
+    # No paths, package IDs, app names or exception output can pass this regex.
+    if (op == "cleanyourtv_perf_probe" and status == "SUCCESS"
+            and type(result) is str and PERF_RESULT.fullmatch(result)):
+        return result
+    return "Device-specific result withheld because GitHub control repository is public."
 
 
 def capture_screenshot(device, number, page=None):
@@ -366,7 +378,7 @@ def install_monolith_from_ci(device, args):
 
 def invoke_cleanyourtv_maintenance(device, action):
     """Opt-in fixed actions only: no remote arbitrary shell and no package disable."""
-    if device != "192.168.0.160:5555" or action not in {"probe", "theme", "reboot"}:
+    if device != "192.168.0.160:5555" or action not in {"probe", "theme", "reboot", "perf"}:
         raise BridgeError("Unexpected BOXY target or maintenance operation")
     script = Path(__file__).resolve().parent / "scripts/cleanyourtv_boxy_maintenance.py"
     if not script.is_file() or script.is_symlink():
@@ -414,9 +426,12 @@ def run_action(device, request, permissions, downloads=None):
             raise ActionDenied("Requires local --allow-maintenance flag")
         if op == "cleanyourtv_reboot_check" and not permissions.reboot:
             raise ActionDenied("Reboot separately requires local --allow-reboot flag")
+        if op == "cleanyourtv_perf_probe" and not permissions.control:
+            raise ActionDenied("Fixed D-pad performance sampling requires --allow-control")
         action = {"cleanyourtv_probe": "probe",
                   "cleanyourtv_apply_theme": "theme",
-                  "cleanyourtv_reboot_check": "reboot"}[op]
+                  "cleanyourtv_reboot_check": "reboot",
+                  "cleanyourtv_perf_probe": "perf"}[op]
         return invoke_cleanyourtv_maintenance(device, action)
 
     if op in CONTROL_OPS and not permissions.control:
@@ -490,7 +505,7 @@ def process(device, permissions):
             status, result = "DENIED", str(exc)
         except BridgeError as exc:
             status, result = "ERROR", str(exc)
-        result = public_safe_result(result, private_repo)
+        result = public_safe_result(result, private_repo, request["op"], status)
         result = re.sub(
             r"(?i)\b(?:vless|vmess|trojan|ss|hysteria2)://\S+",
             "<redacted link>", result
