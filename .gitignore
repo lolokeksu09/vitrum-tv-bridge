@@ -1,0 +1,8 @@
+# TV captures may include private apps or account data.
+# Never commit device screenshots to a public repository.
+captures/
+*.apk
+*.key
+*.pem
+.env
+.env.*
