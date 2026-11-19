@@ -1,0 +1,7 @@
+Screenshot uploads are disabled for this public repository.
+
+This path is intentionally a regular FILE rather than a directory.
+It prevents outdated bridge clients from creating captures/issue-*.png
+with the GitHub Contents API, even before a local agent update.
+
+TV screenshot backups must remain on the owner's device or in a PRIVATE repository.
